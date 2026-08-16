@@ -15,22 +15,25 @@ import {
   buriedFraction, nativeContacts, radiusOfGyration, relativeAccessibility,
   perResidue, shrakeRupley, superposedRmsd, fractionFormed, VDW_RADII,
 } from "@foldwise/core";
+import type { Level } from "@foldwise/content";
 import { runsOf, sparklinePath, type Structure } from "@foldwise/ui";
 import { STRUCTURE_COLOURS, rgbToHex, shapeOf } from "@foldwise/render";
 
 import { frameOf, type TrajectoryState } from "../fold/useTrajectory.js";
+import { Explain } from "./Explain.js";
 
 interface ReadoutsProps {
   readonly structure: Structure;
   readonly trajectory: TrajectoryState;
   readonly progress: number;
   readonly hovered: number | null;
+  readonly level: Level;
 }
 
 /** Sample the timeline this many times for the trend lines. */
 const TREND_SAMPLES = 24;
 
-export function Readouts({ structure, trajectory, progress, hovered }: ReadoutsProps) {
+export function Readouts({ structure, trajectory, progress, hovered, level }: ReadoutsProps) {
   const chain = structure.chains[0]!;
 
   const current = useMemo(() => {
@@ -80,17 +83,14 @@ export function Readouts({ structure, trajectory, progress, hovered }: ReadoutsP
       <section className="card">
         <h2>Live read-outs</h2>
         <div className="stats">
-          <Stat label="RMSD to folded" value={metrics.rmsd.toFixed(2)} unit="Å"
-            trend={trends?.rmsd} at={progress}
-            hint="Distance from the deposited structure, averaged over every residue." />
-          <Stat label="Radius" value={metrics.rg.toFixed(1)} unit="Å"
-            trend={trends?.rg} at={progress}
-            hint="Radius of gyration — how spread out the chain is." />
-          <Stat label="Native contacts" value={`${Math.round(metrics.q * 100)}`} unit="%"
-            trend={trends?.q} at={progress}
-            hint="Fraction of the folded structure's contacts that have formed." />
-          <Stat label="Buried core" value={`${Math.round(metrics.buried * 100)}`} unit="%"
-            hint="Residues with less than a quarter of their surface exposed." />
+          <Stat id="rmsd" label="RMSD to folded" value={metrics.rmsd.toFixed(2)} unit="Å"
+            trend={trends?.rmsd} at={progress} level={level} />
+          <Stat id="radius" label="Radius" value={metrics.rg.toFixed(1)} unit="Å"
+            trend={trends?.rg} at={progress} level={level} />
+          <Stat id="contacts" label="Native contacts" value={`${Math.round(metrics.q * 100)}`} unit="%"
+            trend={trends?.q} at={progress} level={level} />
+          <Stat id="buried" label="Buried core" value={`${Math.round(metrics.buried * 100)}`} unit="%"
+            level={level} />
         </div>
       </section>
 
@@ -117,18 +117,19 @@ export function Readouts({ structure, trajectory, progress, hovered }: ReadoutsP
 }
 
 interface StatProps {
+  readonly id: string;
   readonly label: string;
   readonly value: string;
   readonly unit: string;
-  readonly hint: string;
+  readonly level: Level;
   readonly trend?: readonly number[] | undefined;
   readonly at?: number;
 }
 
-function Stat({ label, value, unit, hint, trend, at = 0 }: StatProps) {
+function Stat({ id, label, value, unit, level, trend, at = 0 }: StatProps) {
   return (
-    <div className="stat" title={hint}>
-      <span className="stat__label">{label}</span>
+    <div className="stat">
+      <span className="stat__label">{label}<Explain id={id} level={level} /></span>
       <span className="stat__value">
         {value}<span className="stat__unit">{unit}</span>
       </span>

@@ -15,3 +15,6 @@ export { CITATIONS, citation, citationHref, formatCitation } from "./citations.j
 export { STORIES, story, storyForStructure } from "./stories.js";
 export { STRUCTURE_CONTENT, structureContent } from "./structures.js";
 export { HONESTY } from "./honesty.js";
+
+export { EXPLAINERS, FIRST_LOOK, NOTATION, explainer, firstLook } from "./guidance.js";
+export type { Explainer, FirstLookItem, NotationEntry } from "./guidance.js";

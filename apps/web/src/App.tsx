@@ -5,6 +5,7 @@ import { REPRESENTATIONS, coverage, unobservedResidues, type Structure } from "@
 
 import type { Level } from "@foldwise/content";
 
+import { FirstLook, NotationKey } from "./components/Explain.js";
 import { HonestySheet } from "./components/HonestySheet.js";
 import { Library } from "./components/Library.js";
 import { StoryPanel } from "./components/StoryPanel.js";
@@ -65,6 +66,8 @@ export function App() {
       <aside className="rail rail--left">
         <Library />
         <StoryPanel structureId={view.structure} level={level} onLevel={setLevel} />
+        <FirstLook structureId={view.structure} />
+        <NotationKey />
       </aside>
 
       <main className="centre">
@@ -112,6 +115,7 @@ export function App() {
               trajectory={trajectory}
               progress={view.progress}
               hovered={hovered}
+              level={level}
             />
             <section className="card">
               <h2>About this structure</h2>

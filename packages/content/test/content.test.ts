@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { CITATIONS, citation, citationHref, formatCitation } from "../src/citations.js";
+import { EXPLAINERS, NOTATION, firstLook } from "../src/guidance.js";
 import { HONESTY } from "../src/honesty.js";
 import {
   citationSchema, honestySchema, LEVELS, storySchema, structureContentSchema,
@@ -215,5 +216,56 @@ describe("citation formatting", () => {
 
   it("has no duplicate identifiers", () => {
     expect(new Set(CITATIONS.map((c) => c.id)).size).toBe(CITATIONS.length);
+  });
+});
+
+describe("the explain layer", () => {
+  it("keys every shape the renderer can draw", () => {
+    expect(NOTATION.map((n) => n.shape).sort()).toEqual(["coil", "helix", "strand"]);
+  });
+
+  it("says what each shape means and why it matters", () => {
+    for (const entry of NOTATION) {
+      expect(entry.meaning.length, entry.id).toBeGreaterThan(40);
+      // The half usually missing: what the shape tells you, not just what it is.
+      expect(entry.soWhat.length, entry.id).toBeGreaterThan(40);
+    }
+  });
+
+  it("explains every read-out the interface shows", () => {
+    // Adding a stat without an explainer is how a panel becomes unreadable.
+    expect(EXPLAINERS.map((e) => e.id).sort()).toEqual(["buried", "contacts", "radius", "rmsd"]);
+  });
+
+  it("says what rising and falling mean, not only what the number is", () => {
+    for (const entry of EXPLAINERS) {
+      for (const level of LEVELS) {
+        expect(entry.what[level].length, `${entry.id} · ${level}`).toBeGreaterThan(40);
+      }
+      expect(entry.rising.length, entry.id).toBeGreaterThan(25);
+      expect(entry.falling.length, entry.id).toBeGreaterThan(25);
+    }
+  });
+
+  it("gives every structure exactly three things to look at first", () => {
+    // Fixed and short, like "rate, rhythm, axis". A longer list is a list
+    // nobody reads.
+    for (const entry of STRUCTURE_CONTENT) {
+      expect(firstLook(entry.id).length, entry.id).toBe(3);
+    }
+  });
+
+  it("verifies every residue a first-look item points at", () => {
+    for (const entry of STRUCTURE_CONTENT) {
+      const structure = loadStructure(entry.id);
+      for (const item of firstLook(entry.id)) {
+        if (item.residue === undefined) continue;
+        const chain = structure.chains.find((c) => c.id === item.residue!.chain);
+        expect(chain, `${entry.id} chain ${item.residue.chain}`).toBeDefined();
+        const index = chain!.res_nums.indexOf(item.residue.resNum);
+        expect(index, `${entry.id} residue ${item.residue.resNum}`).toBeGreaterThanOrEqual(0);
+        expect(chain!.seq[index], `${entry.id} ${item.residue.resNum}`).toBe(item.residue.code);
+      }
+    }
   });
 });
