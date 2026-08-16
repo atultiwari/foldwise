@@ -1,0 +1,18 @@
+node_modules/
+dist/
+coverage/
+.DS_Store
+*.log
+
+# pipeline
+pipeline/.venv/
+pipeline/__pycache__/
+**/__pycache__/
+.pytest_cache/
+.ruff_cache/
+
+# large raw structure downloads — regenerate with `pnpm data`
+data/cache/
+
+# TypeScript build output
+*.tsbuildinfo

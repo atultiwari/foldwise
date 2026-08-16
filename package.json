@@ -1,0 +1,22 @@
+{
+  "name": "foldwise",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "packageManager": "pnpm@9.12.0",
+  "scripts": {
+    "dev": "echo 'apps/web arrives in Phase 5' && exit 1",
+    "build": "pnpm -r build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "typecheck": "tsc -b --pretty",
+    "data": "uv run --directory pipeline python -m foldwise.cli build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@vitest/coverage-v8": "^2.1.8",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
