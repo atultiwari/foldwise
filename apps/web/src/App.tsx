@@ -3,10 +3,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { COLOR_MODES } from "@foldwise/render";
 import { REPRESENTATIONS, coverage, unobservedResidues, type Structure } from "@foldwise/ui";
 
-import { ORIENTATION, storyForStructure, storyTour, type Level } from "@foldwise/content";
+import {
+  ORIENTATION, comparison, comparisonForStory, storyForStructure, storyTour,
+  structureContent, type Level,
+} from "@foldwise/content";
 import type { Stage } from "@foldwise/render";
 
 import { FirstLook, NotationKey } from "./components/Explain.js";
+import { Compare } from "./components/Compare.js";
 import { HonestySheet } from "./components/HonestySheet.js";
 import { Library } from "./components/Library.js";
 import { StoryPanel } from "./components/StoryPanel.js";
@@ -20,6 +24,16 @@ import { useTrajectory } from "./fold/useTrajectory.js";
 import { listenToHistory, useView } from "./state/store.js";
 import type { ColorModeKey, Representation } from "@foldwise/ui";
 
+/** The display name a comparison label should show. */
+function appClass(comparing: boolean, layout: string): string {
+  if (!comparing) return "app";
+  return layout === "side-by-side" ? "app app--comparing app--split" : "app app--comparing";
+}
+
+function leftName(structureId: string): string {
+  return structureContent(structureId)?.name ?? structureId;
+}
+
 export function App() {
   const view = useView();
   const [structure, setStructure] = useState<Structure | null>(null);
@@ -29,12 +43,18 @@ export function App() {
   const [level, setLevel] = useState<Level>("student");
   const [honestyOpen, setHonestyOpen] = useState(false);
   const [tour, setTour] = useState<TourRun | null>(null);
+  const [stage, setStage] = useState<Stage | null>(null);
+  const pair = view.compare === "" ? undefined : comparison(view.compare);
+  const [compareLayout, setCompareLayout] = useState<"side-by-side" | "superposed">("side-by-side");
   const stageRef = useRef<Stage | null>(null);
   const locate = useCallback(
     (chain: number, residue: number) => stageRef.current?.locate(chain, residue) ?? null,
     [],
   );
-  const onStageReady = useCallback((stage: Stage | null) => { stageRef.current = stage; }, []);
+  const onStageReady = useCallback((next: Stage | null) => {
+    stageRef.current = next;
+    setStage(next);
+  }, []);
 
   useEffect(() => listenToHistory(), []);
 
@@ -68,7 +88,7 @@ export function App() {
   const trajectory = useTrajectory(structure);
 
   return (
-    <div className="app">
+    <div className={appClass(pair !== undefined, compareLayout)}>
       <header className="masthead">
         <div className="brand">
           <h1>Foldwise</h1>
@@ -88,7 +108,8 @@ export function App() {
       </header>
 
       <aside className="rail rail--left">
-        <Library />
+        {pair === undefined ? <Library /> : null}
+        {pair === undefined ? (
         <StoryPanel
           structureId={view.structure}
           level={level}
@@ -100,9 +121,36 @@ export function App() {
               setTour({ steps: found.steps, kind: "story", title: found.title });
             }
           }}
+          onCompare={() => {
+            const story = storyForStructure(view.structure);
+            const found = story === undefined ? undefined : comparisonForStory(story.id);
+            if (found !== undefined) {
+              if (view.structure !== found.left) view.setStructure(found.left);
+              // Both structures must be folded. Comparing a generated coil
+              // against a deposited structure measures the coil, not the
+              // difference between the two proteins.
+              view.setProgress(1);
+              view.setPlaying(false);
+              view.setCompare(found.id);
+            }
+          }}
         />
-        <FirstLook structureId={view.structure} />
-        <NotationKey />
+        ) : null}
+        {pair === undefined ? (
+          <>
+            <FirstLook structureId={view.structure} />
+            <NotationKey />
+          </>
+        ) : (
+          <Compare
+            pair={pair}
+            left={structure}
+            stage={stage}
+            level={level}
+            onClose={() => view.setCompare("")}
+            onLayout={setCompareLayout}
+          />
+        )}
       </aside>
 
       <main className="centre">
@@ -138,6 +186,13 @@ export function App() {
             </select>
           </label>
         </div>
+
+        {pair !== undefined && compareLayout === "side-by-side" ? (
+          <div className="compare__labels" aria-hidden="true">
+            <span>{leftName(pair.left)}</span>
+            <span>{leftName(pair.right)}</span>
+          </div>
+        ) : null}
 
         {loadError !== null ? <p className="error" role="alert">{loadError}</p> : null}
       </main>

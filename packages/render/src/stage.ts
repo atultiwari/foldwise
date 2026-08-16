@@ -23,6 +23,17 @@ import { buildSurface } from "./surface.js";
 /** How the molecule is drawn. */
 export type Representation = "cartoon" | "spacefill" | "sticks" | "surface";
 
+/**
+ * How a second structure is shown alongside the first.
+ *
+ * `off` is the normal single-structure case. The other two are compare mode,
+ * and both are served by **one renderer**: browsers cap live WebGL contexts at
+ * roughly 8-16, and a second renderer would also duplicate every shader
+ * program and all GPU state for what is already the heaviest screen.
+ * Side-by-side is drawn as two scissored viewports of the same scene.
+ */
+export type CompareMode = "off" | "side-by-side" | "superposed";
+
 /** Van der Waals radius used for the surface, per alpha carbon. */
 const SURFACE_RADIUS = 3.2;
 
@@ -78,8 +89,15 @@ export class Stage {
    * point outside itself instead of spinning it in place.
    */
   private readonly pivot = new Group();
+
+  /** The comparison structure, when one is loaded. */
+  private readonly pivotB = new Group();
+  private readonly chainsB: ChainState[] = [];
+  private compareMode: CompareMode = "off";
   private readonly chains: ChainState[] = [];
   private readonly target = new Vector3();
+  /** Centre of the comparison structure, framed independently side by side. */
+  private readonly targetB = new Vector3();
   private distance = 60;
   private desiredDistance = 60;
   private frameHandle = 0;
@@ -115,7 +133,8 @@ export class Stage {
     key.position.set(1, 1.4, 1);
     const fill = new DirectionalLight(0xffffff, 0.6);
     fill.position.set(-1, -0.6, -0.8);
-    this.molecule.add(this.pivot);
+    this.molecule.add(this.pivot, this.pivotB);
+    this.pivotB.visible = false;
     this.scene.add(key, fill, new AmbientLight(0xffffff, 0.55), this.molecule);
 
     container.append(this.renderer.domElement);
@@ -127,6 +146,20 @@ export class Stage {
   load(chains: readonly ChainView[]): void {
     this.clear();
     for (const chain of chains) {
+      const state = this.makeChain(chain);
+      this.pivot.add(state.mesh, state.atoms, state.bonds, state.surface);
+      this.chains.push(state);
+      // Instance matrices start as identity, so without this the atoms and
+      // bonds sit in a heap at the origin until the first conformation change
+      // -- and for a structure shown in its native state there is never one.
+      this.updateInstances(state);
+    }
+    this.applyRepresentation();
+    this.frameAll();
+  }
+
+  private makeChain(chain: ChainView): ChainState {
+    {
       const geometry = buildRibbon(chain.ca, chain.secondaryStructure);
       const bufferGeometry = new BufferGeometry();
       bufferGeometry.setAttribute("position", new BufferAttribute(geometry.positions, 3));
@@ -170,21 +203,24 @@ export class Stage {
       );
       surface.frustumCulled = false;
 
-      this.pivot.add(mesh, atoms, bonds, surface);
-      const state: ChainState = {
+      return {
         geometry, bufferGeometry, mesh, atoms, bonds, surface,
         secondaryStructure: chain.secondaryStructure,
         ca: chain.ca,
         residueColors: new Float32Array(residues * 3).fill(1),
       };
-      this.chains.push(state);
-      // Instance matrices start as identity, so without this the atoms and
-      // bonds sit in a heap at the origin until the first conformation change
-      // -- and for a structure shown in its native state there is never one.
-      this.updateInstances(state);
     }
-    this.applyRepresentation();
-    this.frameAll();
+  }
+
+  private disposeChain(chain: ChainState): void {
+    chain.bufferGeometry.dispose();
+    chain.atoms.geometry.dispose();
+    chain.bonds.geometry.dispose();
+    chain.surface.geometry.dispose();
+    (chain.mesh.material as MeshStandardMaterial).dispose();
+    (chain.atoms.material as MeshStandardMaterial).dispose();
+    (chain.bonds.material as MeshStandardMaterial).dispose();
+    (chain.surface.material as MeshStandardMaterial).dispose();
   }
 
   /** Rewrite positions for a new conformation. Allocates nothing per frame. */
@@ -275,6 +311,50 @@ export class Stage {
     });
   }
 
+  /**
+   * Load a second structure to compare against.
+   *
+   * Coordinates are expected already superposed onto the first — the fit is a
+   * scientific decision made in `packages/core`, not a rendering one.
+   */
+  loadComparison(chains: readonly ChainView[]): void {
+    this.clearComparison();
+    for (const chain of chains) {
+      const state = this.makeChain(chain);
+      this.pivotB.add(state.mesh, state.atoms, state.bonds, state.surface);
+      this.chainsB.push(state);
+      this.updateInstances(state);
+    }
+    this.applyRepresentation();
+  }
+
+  setCompareMode(mode: CompareMode): void {
+    this.compareMode = mode;
+    this.pivotB.visible = mode !== "off";
+    this.applyRepresentation();
+    this.frameAll();
+  }
+
+  /** Colour the comparison structure. */
+  setComparisonColors(perChainColors: readonly ArrayLike<number>[]): void {
+    this.chainsB.forEach((chain, index) => {
+      const colors = perChainColors[index];
+      if (colors === undefined) return;
+      chain.residueColors = Float32Array.from(colors as ArrayLike<number>);
+      const attribute = chain.bufferGeometry.getAttribute("color") as BufferAttribute;
+      attribute.array.set(colorVertices(colors, chain.geometry.residueOf));
+      attribute.needsUpdate = true;
+    });
+  }
+
+  clearComparison(): void {
+    for (const chain of this.chainsB) {
+      this.pivotB.remove(chain.mesh, chain.atoms, chain.bonds, chain.surface);
+      this.disposeChain(chain);
+    }
+    this.chainsB.length = 0;
+  }
+
   /** Choose how the molecule is drawn. */
   setRepresentation(representation: Representation): void {
     this.representation = representation;
@@ -283,7 +363,7 @@ export class Stage {
   }
 
   private applyRepresentation(): void {
-    for (const chain of this.chains) {
+    for (const chain of [...this.chains, ...this.chainsB]) {
       chain.mesh.visible = this.representation === "cartoon";
       chain.atoms.visible = this.representation === "spacefill";
       chain.bonds.visible = this.representation === "sticks";
@@ -390,27 +470,53 @@ export class Stage {
 
   /** Fit the camera to everything currently loaded. */
   frameAll(): void {
-    // Concatenated by copy, not by spreading into push(): a 550-residue chain
-    // is around 80,000 floats and `push(...array)` at that size overflows the
-    // call stack.
+    const main = this.boundsOf(this.chains);
+    if (main === null) return;
+    this.target.set(main.centre[0], main.centre[1], main.centre[2]);
+
+    const other = this.boundsOf(this.chainsB);
+    let radius = main.radius;
+
+    if (other !== null) {
+      this.targetB.set(other.centre[0], other.centre[1], other.centre[2]);
+      // Side by side, each viewport frames its own molecule and the camera
+      // must clear the larger of the two. Superposed, they occupy the same
+      // space by construction and the union is the right thing to fit.
+      radius = this.compareMode === "superposed"
+        ? Math.max(main.radius, other.radius, this.target.distanceTo(this.targetB) / 2 + other.radius)
+        : Math.max(main.radius, other.radius);
+    }
+
+    // Each half of a side-by-side view is only half as wide, so the camera has
+    // to pull back further to fit the same molecule.
+    const width = this.container.clientWidth;
+    const height = Math.max(1, this.container.clientHeight);
+    const aspect = this.compareMode === "side-by-side"
+      ? Math.floor(width / 2) / height
+      : width / height;
+
+    this.desiredDistance = fitDistance(radius, this.camera.fov, Math.max(0.1, aspect));
+  }
+
+  /**
+   * Bounding sphere over a set of chains.
+   *
+   * Concatenated by copy, not by spreading into push(): a 550-residue chain is
+   * around 80,000 floats and `push(...array)` at that size overflows the call
+   * stack.
+   */
+  private boundsOf(chains: readonly ChainState[]): { centre: readonly [number, number, number]; radius: number } | null {
     let total = 0;
-    for (const chain of this.chains) total += chain.geometry.positions.length;
-    if (total === 0) return;
+    for (const chain of chains) total += chain.geometry.positions.length;
+    if (total === 0) return null;
 
     const all = new Float32Array(total);
     let offset = 0;
-    for (const chain of this.chains) {
+    for (const chain of chains) {
       all.set(chain.geometry.positions, offset);
       offset += chain.geometry.positions.length;
     }
-
-    const { centre, radius } = boundingSphere(all);
-    this.target.set(centre[0], centre[1], centre[2]);
-    this.desiredDistance = fitDistance(
-      radius,
-      this.camera.fov,
-      Math.max(0.1, this.camera.aspect),
-    );
+    return boundingSphere(all);
   }
 
   orbit(deltaX: number, deltaY: number): void {
@@ -447,9 +553,47 @@ export class Stage {
       deltaSeconds,
     );
     this.pivot.position.set(-this.target.x, -this.target.y, -this.target.z);
+    // Superposed coordinates are already in the first structure's frame, so
+    // the same offset applies. Side by side, each viewport centres its own.
+    this.pivotB.position.copy(
+      this.compareMode === "side-by-side"
+        ? new Vector3(-this.targetB.x, -this.targetB.y, -this.targetB.z)
+        : this.pivot.position,
+    );
     this.camera.position.set(0, 0, this.distance);
     this.camera.lookAt(0, 0, 0);
+
+    const { clientWidth: width, clientHeight: height } = this.container;
+    if (this.compareMode !== "side-by-side") {
+      this.renderer.setScissorTest(false);
+      this.renderer.setViewport(0, 0, width, height);
+      this.camera.aspect = width / Math.max(1, height);
+      this.camera.updateProjectionMatrix();
+      this.renderer.render(this.scene, this.camera);
+      return;
+    }
+
+    // Two viewports of the same scene, drawn with one renderer. A second
+    // WebGLRenderer would duplicate every shader program and count against the
+    // browser's context limit for no benefit.
+    const half = Math.floor(width / 2);
+    this.camera.aspect = half / Math.max(1, height);
+    this.camera.updateProjectionMatrix();
+    this.renderer.setScissorTest(true);
+
+    this.pivot.visible = true;
+    this.pivotB.visible = false;
+    this.renderer.setViewport(0, 0, half, height);
+    this.renderer.setScissor(0, 0, half, height);
     this.renderer.render(this.scene, this.camera);
+
+    this.pivot.visible = false;
+    this.pivotB.visible = true;
+    this.renderer.setViewport(width - half, 0, half, height);
+    this.renderer.setScissor(width - half, 0, half, height);
+    this.renderer.render(this.scene, this.camera);
+
+    this.pivot.visible = true;
   }
 
   resize(): void {
@@ -468,16 +612,10 @@ export class Stage {
   clear(): void {
     for (const chain of this.chains) {
       this.pivot.remove(chain.mesh, chain.atoms, chain.bonds, chain.surface);
-      chain.bufferGeometry.dispose();
-      chain.atoms.geometry.dispose();
-      chain.bonds.geometry.dispose();
-      chain.surface.geometry.dispose();
-      (chain.mesh.material as MeshStandardMaterial).dispose();
-      (chain.atoms.material as MeshStandardMaterial).dispose();
-      (chain.bonds.material as MeshStandardMaterial).dispose();
-      (chain.surface.material as MeshStandardMaterial).dispose();
+      this.disposeChain(chain);
     }
     this.chains.length = 0;
+    this.clearComparison();
   }
 
   dispose(): void {

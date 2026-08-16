@@ -431,3 +431,82 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
 
 /* A residue anchor is a ring on the model, not a rectangle round a panel. */
 .tour__spot--residue { border-radius: 999px; box-shadow: 0 0 0 9999px #0b0e1188, 0 0 0 2px var(--accent) inset; }
+
+/* ── Compare ────────────────────────────────────────────────────────────── */
+
+.story__actions { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.story__tour { margin: 0; }
+.story__compare {
+  padding: 8px 12px; border-radius: 9px; font-size: 12px; font-weight: 600;
+  border: 1px solid var(--line-strong); color: var(--ink-soft); text-align: center;
+}
+.story__compare:hover { background: var(--panel-soft); }
+
+/* Comparing collapses the non-essential: the library and the story panel give
+   their space to the difference, and the model gets the rest. */
+.app--comparing { grid-template-columns: 330px minmax(0, 1fr) 0; }
+.app--comparing .rail--right { display: none; }
+
+/* A seam, so two viewports of one scene read as two panels rather than as a
+   single confusing image. */
+.app--split .stage::after {
+  content: ""; position: absolute; inset: 0 auto 0 50%;
+  width: 1px; background: var(--line-strong); pointer-events: none; z-index: 1;
+}
+.compare__labels {
+  position: absolute; inset: auto 0 10px 0; z-index: 2;
+  display: grid; grid-template-columns: 1fr 1fr; pointer-events: none;
+}
+.compare__labels span {
+  justify-self: center; font-size: 11px; padding: 4px 12px; border-radius: 999px;
+  background: var(--panel); border: 1px solid var(--line-strong); color: var(--ink-soft);
+  box-shadow: var(--shadow);
+}
+
+.compare__head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.compare__head h2 { margin: 0; }
+.compare__close {
+  margin-left: auto; font-size: 11.5px; color: var(--ink-faint);
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.compare h3 { margin: 0 0 6px; font-size: 14.5px; }
+.compare h4 {
+  margin: 14px 0 6px; font-size: 10.5px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--ink-faint); font-weight: 600;
+}
+.compare__summary { margin: 0 0 12px; font-size: 12.5px; line-height: 1.55; }
+.compare__modes { display: flex; gap: 3px; margin-bottom: 12px; }
+.compare__modes button {
+  flex: 1; padding: 6px 10px; border-radius: 8px; font-size: 12px;
+  border: 1px solid var(--line); color: var(--ink-soft);
+}
+.compare__modes button[aria-pressed="true"] {
+  background: var(--accent-soft); color: var(--accent); border-color: transparent;
+}
+
+.compare__numbers { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 0 0 10px; }
+.compare__numbers dt { font-size: 10px; color: var(--ink-faint); }
+.compare__numbers dd {
+  margin: 1px 0 0; font-size: 15px; font-weight: 620; font-variant-numeric: tabular-nums;
+}
+.compare__numbers dd span { font-size: 10px; font-weight: 400; color: var(--ink-faint); }
+
+.compare__caveat {
+  margin: 0 0 6px; padding: 8px 10px; font-size: 11px; line-height: 1.45;
+  background: var(--panel-soft); border-radius: 8px; color: var(--ink-soft);
+}
+.compare__loading { font-size: 12px; color: var(--ink-faint); }
+
+.compare__notable { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.compare__notable li { display: flex; justify-content: space-between; font-size: 11.5px; }
+.compare__res { font-family: var(--mono); color: var(--accent); }
+
+.compare__list { margin: 0; padding-left: 17px; font-size: 12px; line-height: 1.45; }
+.compare__list li { margin-bottom: 5px; }
+.compare__list--unchanged li::marker { color: var(--good); }
+
+.compare__key { display: flex; align-items: center; gap: 5px; margin: 0 0 10px; font-size: 11px; color: var(--ink-faint); }
+.compare__swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.compare__swatch--a { background: #0072b2; }
+.compare__swatch--b { background: #d96b3d; margin-left: 8px; }
+.compare__unchanged-head { color: var(--good) !important; }

@@ -579,7 +579,91 @@ Every estimate in the interface is traceable to a line in it.
 
 ---
 
-## 12. Not yet validated
+## 12. Guidance and comparison — Phase 6a
+
+**Explain layer, orientation tour, story tours and compare mode.** 360 TypeScript
+tests overall.
+
+### Story tours
+
+Four tours, one per clinical story, each driving the whole application. Every
+residue a step names is verified against the structure file, exactly as the
+annotations are. Tests additionally require each tour to stay between five and
+nine beats, to name only structures from its own story, to use colour modes the
+renderer knows, and to **end in the clinic rather than in the geometry**.
+
+The renderer gained `locate`, the inverse of picking: given a chain and residue
+it returns where that residue sits on screen. Verified live — the ring centres
+on (877, 656) against an expected (876, 655).
+
+### Compare mode
+
+Two constraints were settled in the plan before any code. Both turned out to
+matter, and a third was found only by measuring.
+
+**1. Crystallographic noise exceeds the biological difference — confirmed
+exactly.** Measured on the real files:
+
+| Pair | Aligned | RMSD | Noise floor |
+|---|---:|---:|---:|
+| HbA ↔ HbS (β chain) | 146 | **0.36 Å** | 0.22 Å |
+| NBD1 ↔ ΔF508 | 243 | 1.67 Å | 0.50 Å |
+| ABL ↔ T315I | 265 | 0.99 Å | 0.34 Å |
+| Mpro ↔ dimer | 302 | 0.85 Å | 0.54 Å |
+
+For haemoglobin the most-deviated residues are **V1, H2, T4, L3, P5** — the
+floppy N-terminus. β6, the residue that causes the disease, does not appear in
+a deviation ranking at all. A view that simply coloured by difference would
+point confidently at the wrong thing. So deviation is shown beside its noise
+floor, the interface says outright when two structures are identical to within
+crystallographic variation, and the curated text carries the mechanism.
+
+The same holds for ΔF508, where the largest deviation is Gly404 at the edge of
+the disordered regulatory insertion — not the deletion site.
+
+**2. Alignment is by residue number, never by index.** ΔF508 deletes a residue,
+so indices diverge permanently after 508. A test asserts that no aligned pair
+ever has mismatched residue numbers, that 507 and 509 align while 508 does not,
+and that the fold comes out broadly preserved — because if that ever exceeded a
+few ångström the clinical story told alongside it would be wrong.
+
+**3. Found by measuring: whole assemblies do not superpose.** The two ABL
+structures each contain two copies packed differently in the asymmetric unit,
+and fitting both at once gave **RMSD 25.6 Å** for two molecules that are nearly
+identical. Comparison is now restricted to one nominated chain, which brings
+the same pair to 0.99 Å. The noise-floor mechanism behaved correctly throughout
+— it refused to nominate any residue rather than producing garbage — but the
+headline number was still misleading.
+
+**Which chain matters.** Haemoglobin is compared on the **β** chain, not the α:
+chain A carries no substitution at all, and comparing on it would superpose two
+identical molecules and teach nothing. A test asserts residue 6 is glutamate in
+one and valine in the other.
+
+**One renderer, two scissored viewports**, as planned — a second `WebGLRenderer`
+would duplicate every shader program and count against the browser's context
+limit.
+
+### Three bugs fixed along the way
+
+Found by auditing the multi-chain path, which no test covered because every
+trajectory invariant had been verified on single-chain structures.
+
+1. **Unfolded chains passed through each other.** Closest approach between
+   haemoglobin's four chains at frame zero measured **0.00 Å**. Chains are now
+   held apart while denatured — which is also more truthful, since a denatured
+   complex is dissociated — converging as they fold, by a rigid translation
+   that decays to exactly zero before the native state.
+2. **The read-outs measured `chains[0]` alone.** Haemoglobin reported 141
+   residues of a 574-residue tetramer, and every inter-chain contact was
+   invisible. Folded Rg goes from 14.4 Å (chain A) to **23.7 Å** (the tetramer),
+   which is the published value.
+3. **Hover dropped the chain index**, so hovering chain D residue 5 reported
+   chain A residue 5.
+
+---
+
+## 13. Not yet validated
 
 Named here so nothing is quietly assumed:
 
@@ -588,5 +672,7 @@ Named here so nothing is quietly assumed:
 - [ ] Trajectory invariants on multi-chain structures — 1UBI and 7VH8 are single chains
 - [ ] Sustained frame rate under animation — mesh rebuild is measured, the full loop is not
 - [ ] React components — only the pure layer beneath them has tests; no E2E yet
+- [ ] Tour element anchors — checked at runtime in development and by hand, but not in CI without a DOM
+- [ ] Comparison beyond the four curated pairs — arbitrary pairing needs an alignment story for unrelated proteins
 - [ ] Accessibility — keyboard transport works, but nothing has been run through axe
 - [ ] The ΔF508 / T315I variant deltas — nothing computed yet

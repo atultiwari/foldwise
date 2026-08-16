@@ -1,6 +1,6 @@
 # Phase 6a — Teaching the reader how to read it
 
-**Status:** 6a.1 and 6a.2 done · 6a.3–6a.4 planned · **Between** Phase 6 (editorial) and Phase 7 (ship)
+**Status:** complete · **Between** Phase 6 (editorial) and Phase 7 (ship)
 **Estimated:** 4 weeks
 
 ---
@@ -33,8 +33,8 @@ Two consequences, and this phase addresses both:
 |---|---|---|
 | **6a.1** ✅ | Explain layer | Teaches the notation. Cheapest, highest leverage. |
 | **6a.2** ✅ | Orientation tour | Six steps, once, on first run. What the panels are. |
-| **6a.3** | Story tours | The actual teaching: camera flies to β6, and says why. |
-| **6a.4** | Compare mode | Two structures at once, with the difference made honest. |
+| **6a.3** ✅ | Story tours | The actual teaching: camera flies to β6, and says why. |
+| **6a.4** ✅ | Compare mode | Two structures at once, with the difference made honest. |
 
 Ordered by dependency and by value-per-effort. 6a.1 alone would meaningfully
 improve the app; 6a.4 is the largest piece and depends on nothing before it, so
@@ -261,8 +261,8 @@ proteins, which is a different problem.
 |---|---|---|
 | 6a.1 Explain layer | ✅ done | Met: 4 read-outs explained at 3 levels with rise/fall meaning, 3 notation entries, 27 first-look items with residue claims verified |
 | 6a.2 Orientation tour | ✅ done | Met: 6 steps, all anchors resolve, suppressed on deep links, focus trapped and returned, Esc and arrow keys |
-| 6a.3 Story tours | 1 wk | Four tours; every anchor and residue claim verified by test; every step is a link |
-| 6a.4 Compare mode | 2 wk | Alignment by residue number with count reported; one renderer; noise floor displayed; four curated pairs |
+| 6a.3 Story tours | ✅ done | Met: four tours, every residue claim verified, each ends in the clinic |
+| 6a.4 Compare mode | ✅ done | Met, plus a third constraint found by measuring: whole assemblies do not superpose (ABL gave 25.6 A until restricted to one chain) |
 
 **Verification, in the pattern this project has settled into:** pure logic
 (alignment, deviation statistics, tour-step resolution, URL codec) gets unit

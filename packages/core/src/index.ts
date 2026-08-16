@@ -32,3 +32,6 @@ export type { BackboneCoords, HydrogenBond, HydrogenBondOptions } from "./hbonds
 
 export { DEFAULT_SALT_BRIDGE_CUTOFF, disulfides, nativeBridgesFormed, saltBridges } from "./saltBridges.js";
 export type { SaltBridge, SaltBridgeOptions } from "./saltBridges.js";
+
+export { alignByResidueNumber, compareStructures, gather, notableDeviations } from "./align.js";
+export type { Alignment, AlignmentInput, Comparison, CompareOptions } from "./align.js";

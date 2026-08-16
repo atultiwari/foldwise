@@ -16,6 +16,7 @@ interface StoryPanelProps {
   readonly level: Level;
   readonly onLevel: (level: Level) => void;
   readonly onStartTour: () => void;
+  readonly onCompare: () => void;
 }
 
 const LEVEL_LABELS: Record<Level, string> = {
@@ -24,7 +25,7 @@ const LEVEL_LABELS: Record<Level, string> = {
   researcher: "Research",
 };
 
-export function StoryPanel({ structureId, level, onLevel, onStartTour }: StoryPanelProps) {
+export function StoryPanel({ structureId, level, onLevel, onStartTour, onCompare }: StoryPanelProps) {
   const content = structureContent(structureId);
   const story = storyForStructure(structureId);
   if (content === undefined || story === undefined) return null;
@@ -53,9 +54,14 @@ export function StoryPanel({ structureId, level, onLevel, onStartTour }: StoryPa
 
       <p className="story__question">{story.question}</p>
 
-      <button type="button" className="story__tour" onClick={onStartTour}>
-        Walk me through it →
-      </button>
+      <div className="story__actions">
+        <button type="button" className="story__tour" onClick={onStartTour}>
+          Walk me through it →
+        </button>
+        <button type="button" className="story__compare" onClick={onCompare}>
+          Compare side by side
+        </button>
+      </div>
 
       <h3 className="story__name">
         {content.name}

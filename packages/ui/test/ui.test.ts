@@ -18,7 +18,8 @@ describe("view state in the URL", () => {
   it("round-trips a fully specified view", () => {
     const view = {
       structure: "abl-imatinib", progress: 0.625, mode: "chemistry",
-      representation: "surface", color: "hydropathy", selected: 315, playing: true,
+      representation: "surface", color: "hydropathy", selected: 315,
+      compare: "abl-t315i", playing: true,
     } as const;
     expect(decodeView(encodeView(view))).toEqual(view);
   });
@@ -341,5 +342,18 @@ describe("flatten", () => {
     // the chain index would give.
     expect(globalIndex(flat, 1, 0)).toBe(2);
     expect(globalIndex(flat, 9, 0)).toBe(-1);
+  });
+});
+
+describe("compare mode in the URL", () => {
+  it("round-trips a comparison", () => {
+    const view = { ...DEFAULT_VIEW, compare: "nbd1-df508" };
+    expect(encodeView(view)).toBe("?cmp=nbd1-df508");
+    expect(decodeView("?cmp=nbd1-df508").compare).toBe("nbd1-df508");
+  });
+
+  it("omits it when no comparison is open", () => {
+    expect(encodeView(DEFAULT_VIEW)).toBe("");
+    expect(decodeView("").compare).toBe("");
   });
 });

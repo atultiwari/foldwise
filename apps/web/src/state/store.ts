@@ -21,6 +21,7 @@ interface ViewStore extends ViewState {
   readonly setColor: (color: ColorModeKey) => void;
   readonly setSelected: (selected: number) => void;
   readonly setPlaying: (playing: boolean) => void;
+  readonly setCompare: (compare: string) => void;
   readonly adopt: (view: ViewState) => void;
 }
 
@@ -60,6 +61,7 @@ export const useView = create<ViewStore>((set, get) => {
     setColor: (color) => update({ color }),
     setSelected: (selected) => update({ selected }),
     setPlaying: (playing) => update({ playing }),
+    setCompare: (compare) => update({ compare }),
     adopt: (view) => {
       set(view as never);
       publish(view);
@@ -75,6 +77,7 @@ function stripActions(state: ViewStore | ViewState): ViewState {
     representation: state.representation,
     color: state.color,
     selected: state.selected,
+    compare: state.compare,
     playing: state.playing,
   };
 }

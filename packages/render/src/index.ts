@@ -42,4 +42,4 @@ export { DEFAULT_PICK_RADIUS, multiply, pickResidue, project } from "./picking.j
 export type { PickOptions, Projected, Viewport } from "./picking.js";
 
 export { Stage } from "./stage.js";
-export type { ChainView, Representation, StageOptions } from "./stage.js";
+export type { ChainView, CompareMode, Representation, StageOptions } from "./stage.js";

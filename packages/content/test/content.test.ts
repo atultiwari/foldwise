@@ -8,6 +8,7 @@ import { EXPLAINERS, NOTATION, firstLook } from "../src/guidance.js";
 import { HONESTY } from "../src/honesty.js";
 import { ORIENTATION } from "../src/tour.js";
 import { STORY_TOURS, storyTour } from "../src/storyTours.js";
+import { COMPARISONS, comparison, comparisonForStory } from "../src/comparisons.js";
 import {
   citationSchema, honestySchema, LEVELS, storySchema, structureContentSchema,
 } from "../src/schema.js";
@@ -419,5 +420,63 @@ describe("story tours", () => {
       const text = `${final.title} ${final.copy.student}`;
       expect(clinical.test(text), `${tour.id} ends on: ${final.title}`).toBe(true);
     }
+  });
+});
+
+describe("curated comparisons", () => {
+  it("offers a comparison for every story", () => {
+    for (const entry of STORIES) {
+      expect(comparisonForStory(entry.id), entry.id).toBeDefined();
+    }
+  });
+
+  it("names two structures from its own story", () => {
+    for (const pair of COMPARISONS) {
+      const owned = new Set(story(pair.story)!.structures);
+      expect(owned.has(pair.left), `${pair.id} left`).toBe(true);
+      expect(owned.has(pair.right), `${pair.id} right`).toBe(true);
+      expect(pair.left).not.toBe(pair.right);
+    }
+  });
+
+  it("picks a chain that exists in both structures", () => {
+    for (const pair of COMPARISONS) {
+      expect(loadStructure(pair.left).chains.length, `${pair.id} left`)
+        .toBeGreaterThan(pair.chain);
+      expect(loadStructure(pair.right).chains.length, `${pair.id} right`)
+        .toBeGreaterThan(pair.chain);
+    }
+  });
+
+  it("compares haemoglobin on the chain that actually carries the mutation", () => {
+    // Chain A is the alpha chain and carries no substitution at all. Comparing
+    // on it would superpose two identical molecules and teach nothing.
+    const pair = comparison("hba-hbs")!;
+    const left = loadStructure(pair.left).chains[pair.chain]!;
+    const right = loadStructure(pair.right).chains[pair.chain]!;
+    const at6 = (c: typeof left) => c.seq[c.res_nums.indexOf(6)];
+    expect(at6(left)).toBe("E");
+    expect(at6(right)).toBe("V");
+  });
+
+  it("says what does not change, not only what does", () => {
+    // For three of these four the clinical lesson is what has *not* moved. A
+    // comparison that only lists differences teaches the opposite.
+    for (const pair of COMPARISONS) {
+      expect(pair.unchanged.length, `${pair.id}`).toBeGreaterThanOrEqual(2);
+      expect(pair.differs.length, `${pair.id}`).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it("writes every summary at all three reading levels", () => {
+    for (const pair of COMPARISONS) {
+      for (const level of LEVELS) {
+        expect(pair.summary[level].length, `${pair.id} · ${level}`).toBeGreaterThan(40);
+      }
+    }
+  });
+
+  it("has unique ids", () => {
+    expect(new Set(COMPARISONS.map((c) => c.id)).size).toBe(COMPARISONS.length);
   });
 });

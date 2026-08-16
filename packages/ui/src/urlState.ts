@@ -36,6 +36,8 @@ export const viewStateSchema = z.object({
   color: z.enum(COLOR_MODE_KEYS).catch("structure"),
   /** Selected residue index, or -1 for none. */
   selected: z.coerce.number().int().min(-1).catch(-1),
+  /** Comparison pair id, or "" for none. */
+  compare: z.string().max(64).catch(""),
   playing: z.enum(["0", "1"]).transform((v) => v === "1").catch(false),
 });
 
@@ -48,6 +50,7 @@ export const DEFAULT_VIEW: ViewState = {
   representation: "cartoon",
   color: "structure",
   selected: -1,
+  compare: "",
   playing: false,
 };
 
@@ -59,6 +62,7 @@ const KEYS = {
   representation: "r",
   color: "c",
   selected: "s",
+  compare: "cmp",
   playing: "go",
 } as const;
 
@@ -100,6 +104,7 @@ export function encodeView(view: ViewState): string {
   }
   if (view.color !== DEFAULT_VIEW.color) params.set(KEYS.color, view.color);
   if (view.selected !== DEFAULT_VIEW.selected) params.set(KEYS.selected, String(view.selected));
+  if (view.compare !== DEFAULT_VIEW.compare) params.set(KEYS.compare, view.compare);
   if (view.playing) params.set(KEYS.playing, "1");
 
   const query = params.toString();

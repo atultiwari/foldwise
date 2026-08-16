@@ -23,3 +23,6 @@ export { ORIENTATION, ORIENTATION_VERSION } from "./tour.js";
 export type { Anchor, ElementAnchor, ResidueAnchor, StepView, StoryTour, TourStep } from "./tour.js";
 
 export { STORY_TOURS, storyTour } from "./storyTours.js";
+
+export { COMPARISONS, comparison, comparisonForStory } from "./comparisons.js";
+export type { ComparisonPair } from "./comparisons.js";
