@@ -337,6 +337,10 @@ export class Stage {
       this.updateInstances(state);
     }
     this.applyRepresentation();
+    // The new chains have no surface yet, and the existing one is no longer
+    // the whole picture.
+    this.surfaceStale = true;
+    this.scheduleSurface();
   }
 
   setCompareMode(mode: CompareMode): void {
@@ -391,9 +395,16 @@ export class Stage {
     }, SURFACE_IDLE_MS);
   }
 
-  /** Mesh the molecular surface. Expensive; call when the view is settled. */
+  /**
+   * Mesh the molecular surface. Expensive; call when the view is settled.
+   *
+   * Both structures, not just the first. Meshing only `this.chains` left the
+   * comparison structure with an empty surface geometry, so side-by-side
+   * compare in the surface representation drew one molecule and an empty
+   * viewport beside a label naming the molecule that was missing.
+   */
   rebuildSurface(): void {
-    for (const chain of this.chains) {
+    for (const chain of [...this.chains, ...this.chainsB]) {
       const residues = chain.secondaryStructure.length;
       const mesh = buildSurface(
         chain.ca,

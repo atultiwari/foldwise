@@ -67,6 +67,12 @@ export function App() {
   const onStageReady = useCallback((next: Stage | null) => {
     stageRef.current = next;
     setStage(next);
+    // A handle on the renderer while developing. The camera and the framing
+    // maths are the hardest things here to reason about from the outside, and
+    // guessing at them from screenshots wasted an afternoon once already.
+    if (import.meta.env.DEV) {
+      (window as unknown as { __stage?: Stage | null }).__stage = next;
+    }
   }, []);
 
   useEffect(() => listenToHistory(), []);
