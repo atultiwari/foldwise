@@ -190,7 +190,8 @@ These are constraints on the product, not aspirations. Full text in
 | Editorial and documentation content | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
 | Structural data under `data/` | CC0 1.0 — from RCSB, not ours to license |
 
-Not a medical device. Not for clinical decision-making, diagnosis, or treatment.
+**Not a medical device.** Not for clinical decision-making, diagnosis, or treatment.
+Full terms and constraints in [NOTICE.md](NOTICE.md).
 
 ## Attribution
 
