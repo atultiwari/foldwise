@@ -242,11 +242,72 @@ data point is fitting noise, not calibrating.
 
 ---
 
-## 8. Not yet validated
+## 8. Trajectory engine — `packages/fold` (Phase 3)
+
+**24 tests.** These are not example checks: each one holds over *every frame* of
+a trajectory, because a single bad frame is a frame in which the app is showing
+something a protein cannot do.
+
+| Invariant | 1UBI (76 res, 96 frames) | 7VH8 (306 res, 192 frames) |
+|---|---|---|
+| Worst bond-length error, any bond, any frame | **< 0.01 Å** | **< 0.01 Å** |
+| Closest non-bonded approach vs the native structure's own floor | 4.00 Å vs 4.00 Å | 3.79 Å vs 3.92 Å |
+| Frame 0 radius of gyration vs the Kohn scaling law | 25.70 vs 25.72 Å (**0.08 %**) | 60.38 vs 59.16 Å (2.1 %) |
+| Final frame RMSD to the deposited structure | ~1×10⁻⁶ Å | ~1×10⁻⁶ Å |
+| Same input ⇒ byte-identical output | yes | yes |
+| Generation time | 84 ms | 932 ms |
+
+The final-frame residual is Float32 storage precision, not algorithm error:
+coordinates around 50 Å quantise at roughly 4×10⁻⁶ Å. The last frame is set to
+the deposited coordinates directly rather than steered toward them.
+
+**932 ms is why generation runs in a Web Worker.** Frames come back as
+transferred buffers rather than copies.
+
+### Three things that had to be got wrong first
+
+**1. Bisecting the coil's stiffness was bisecting noise.** The radius of
+gyration of a *single* self-avoiding walk is dominated by which path it took,
+not by the stiffness it was drawn at. Measured across five seeds at fixed
+stiffness, ubiquitin-length walks ranged from **17 Å to 36 Å**, while sweeping
+stiffness end to end moved the mean by about 9 Å. Bisection on a parameter whose
+effect is smaller than the noise around it converges to noise — it left the coil
+13 % off target. Drawing candidates and *measuring* them gets to 0.08 %.
+
+**2. The clash threshold cannot be a round number.** Real structures put
+non-bonded α-carbons closer than any threshold one might pick: ubiquitin's own
+minimum is 4.00 Å, Mpro's 3.92 Å. The first version used a fixed 4 Å and damped
+the separating push by how folded each residue was, so as not to fight the
+native packing — but that damping went to zero exactly where the chain is most
+crowded, and residues ended up **0.68 Å apart, passing straight through each
+other**. Taking the floor from the native structure removes the conflict
+entirely, because whatever the folded state does is by definition possible.
+
+**3. Repairing overlaps is much harder than preventing them.** Declashing once
+per frame let residues drive deep into each other across eight sub-steps, and
+separating a deep overlap just displaces both residues into their neighbours.
+A light pass after every sub-step keeps every correction small. Combined with
+snapping bonds *inside* the declash loop rather than after it — the final snap
+re-places every residue from the chain midpoint outward and was undoing the
+separation it had just achieved — this took the worst overlap from 0.68 Å to
+within 0.13 Å of the native floor.
+
+### What the engine claims, and what it does not
+
+- **Claimed:** the endpoints are real, every bond length is exact throughout,
+  the unfolded state is the size the experiments say it is, and the *order* in
+  which regions fold follows contact order — local structure first, long-range
+  closures last (Plaxco, Simons & Baker 1998).
+- **Not claimed:** that this is the pathway. No protein's folding route has ever
+  been observed. The specific frames are a model, and the app says so.
+
+---
+
+## 9. Not yet validated
 
 Named here so nothing is quietly assumed:
 
 - [ ] Contact order at more than one calibration point — currently ubiquitin only
 - [ ] Salt-bridge cutoff on more than two structures — 12 bridges is a thin basis
-- [ ] Folding trajectory invariants — engine not yet written
+- [ ] Trajectory invariants on multi-chain structures — 1UBI and 7VH8 are single chains
 - [ ] The ΔF508 / T315I variant deltas — nothing computed yet
