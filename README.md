@@ -15,8 +15,12 @@ on screen. Everything that is a model rather than a measurement is labelled as o
 
 **Phases 0–6 complete.** The application runs and it teaches: four clinical
 stories, three reading levels, verified residue annotations, sourced claims, and
-an honesty panel that draws the line between measurement and model. Phase 7 is
-export, offline and accessibility.
+an honesty panel that draws the line between measurement and model.
+
+**Phase 6a is planned next** — teaching the reader how to *read* it. A cartoon
+representation is a notation, and the app currently assumes a literacy most
+clinical readers were never taught. See
+[docs/PHASE-6A-PLAN.md](docs/PHASE-6A-PLAN.md).
 
 | Phase | Scope | State |
 |---|---|---|
@@ -27,7 +31,8 @@ export, offline and accessibility.
 | 4 · Renderer | Cartoon, atoms, sticks, surface, colour modes, picking | ✅ **Done** — 81 tests, all four representations verified visually |
 | 5 · UI shell | React panels, SVG charts, URL state | ✅ **Done** — every view is a shareable link |
 | 6 · Editorial layer | Clinical stories, annotations, citations, honesty panel | ✅ **Done** — 44 tests; residue claims checked against the structures |
-| 7 · Ship | Export, PWA, accessibility | ⏳ **Next** |
+| 6a · Guidance & comparison | Explain layer, guided tours, compare mode | 📋 **Planned** — [detailed plan](docs/PHASE-6A-PLAN.md) |
+| 7 · Ship | Export, PWA, accessibility | ⬜ Pending |
 
 Phase gates and the full plan live in the parent workspace, outside this repo:
 `../docs/02-BUILD-PLAN.md`.
@@ -52,7 +57,11 @@ cd pipeline && uv run python -m foldwise.cli reference
 
 ### What does not exist yet
 
-- No assessment, no Anki export, no compare mode, no figure export.
+- **No on-ramp.** A first-time reader is not told what the shapes mean or what
+  to look at — the gap Phase 6a exists to close.
+- No comparison view, so seeing what differs between wild type and variant
+  means loading one, memorising it, and loading the other.
+- No assessment, no Anki export, no figure export.
 - No offline mode, and no accessibility audit yet.
 
 ---
@@ -160,7 +169,9 @@ foldwise/
 ├── data/
 │   ├── cache/                Raw downloads — gitignored
 │   └── structures/           Emitted JSON — committed
-└── docs/VALIDATION.md        What has actually been proven, with numbers
+└── docs/
+    ├── VALIDATION.md         What has actually been proven, with numbers
+    └── PHASE-6A-PLAN.md      Guidance and comparison -- planned, not started
 ```
 
 Every view is a shareable link: `?p=mpro-nirmatrelvir&t=1&m=chemistry` restores
