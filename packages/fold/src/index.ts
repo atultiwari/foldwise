@@ -19,5 +19,8 @@ export {
   buildTrajectory, frameAt, frameCountFor, formationOfFrame, isFoldable, rmsdCurve,
 } from "./trajectory.js";
 export type { Trajectory, TrajectoryInput } from "./trajectory.js";
+export { NO_SPREAD, SPREAD_END, chainSpreads, spreadFactor } from "./spread.js";
+export type { ChainSpread } from "./spread.js";
+
 export { handleRequest, toResponse } from "./worker.js";
 export type { BuildRequest, BuildResponse, ErrorResponse, WorkerResponse } from "./worker.js";

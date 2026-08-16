@@ -126,3 +126,65 @@ export function chainIndices(structure: Structure): Int32Array {
 export function isFoldable(structure: Structure): boolean {
   return structure.foldability === "fold";
 }
+
+/**
+ * Every chain concatenated into one addressable molecule.
+ *
+ * The read-outs were originally computed on `chains[0]` alone, which for
+ * haemoglobin meant reporting 141 residues of a 574-residue tetramer and
+ * silently ignoring every inter-chain contact — the entire allosteric story of
+ * that protein, and the whole point of the Mpro dimer entry.
+ */
+export interface FlatStructure {
+  readonly ca: Float64Array;
+  readonly sequence: string;
+  readonly secondaryStructure: string;
+  /** Chain index per residue, so contacts can tell intra from inter. */
+  readonly chainOf: Int32Array;
+  readonly resNums: Int32Array;
+  readonly chainIds: readonly string[];
+  readonly residues: number;
+  /** Where each chain starts in the concatenated arrays. */
+  readonly offsets: readonly number[];
+}
+
+export function flatten(structure: Structure): FlatStructure {
+  const residues = residueCount(structure);
+  const ca = new Float64Array(residues * 3);
+  const chainOf = new Int32Array(residues);
+  const resNums = new Int32Array(residues);
+  const offsets: number[] = [];
+
+  let offset = 0;
+  let sequence = "";
+  let secondaryStructure = "";
+
+  structure.chains.forEach((chain, index) => {
+    offsets.push(offset);
+    ca.set(chain.ca, offset * 3);
+    chainOf.fill(index, offset, offset + chain.seq.length);
+    resNums.set(chain.res_nums, offset);
+    sequence += chain.seq;
+    secondaryStructure += chain.ss;
+    offset += chain.seq.length;
+  });
+
+  return {
+    ca, sequence, secondaryStructure, chainOf, resNums,
+    chainIds: structure.chains.map((c) => c.id),
+    residues, offsets,
+  };
+}
+
+/**
+ * Turn a (chain, residue-within-chain) pair into an index into the flattened
+ * molecule.
+ *
+ * The renderer picks per chain, so without this a hover on chain D residue 5
+ * reports chain A residue 5 — the wrong residue, with no sign anything is
+ * amiss.
+ */
+export function globalIndex(flat: FlatStructure, chain: number, residue: number): number {
+  const start = flat.offsets[chain];
+  return start === undefined ? -1 : start + residue;
+}

@@ -2,81 +2,102 @@
  * The live read-outs.
  *
  * Every number here is computed from the coordinates currently on screen, not
- * looked up. That is the difference between a caption and a measurement, and
- * it is what lets the reader scrub the timeline and watch the surface area
- * fall as the chain buries itself.
+ * looked up. That is the difference between a caption and a measurement, and it
+ * is what lets the reader scrub the timeline and watch the chain bury itself.
  *
- * Values that are estimates rather than measurements are labelled as such.
+ * Measured over **every chain**, not the first. An earlier version used
+ * `chains[0]` alone, which reported 141 residues of haemoglobin's 574-residue
+ * tetramer and ignored every inter-chain contact — the allosteric story of that
+ * protein, and the entire point of the Mpro dimer entry.
  */
 
 import { useMemo } from "react";
 
 import {
-  buriedFraction, nativeContacts, radiusOfGyration, relativeAccessibility,
-  perResidue, shrakeRupley, superposedRmsd, fractionFormed, VDW_RADII,
+  VDW_RADII, buriedFraction, fractionFormed, nativeContacts, perResidue,
+  radiusOfGyration, relativeAccessibility, shrakeRupley, superposedRmsd,
 } from "@foldwise/core";
 import type { Level } from "@foldwise/content";
-import { runsOf, sparklinePath, type Structure } from "@foldwise/ui";
+import { flatten, globalIndex, runsOf, sparklinePath, type Structure } from "@foldwise/ui";
 import { STRUCTURE_COLOURS, rgbToHex, shapeOf } from "@foldwise/render";
 
 import { frameOf, type TrajectoryState } from "../fold/useTrajectory.js";
 import { Explain } from "./Explain.js";
 
+export interface Hit {
+  readonly chain: number;
+  readonly residue: number;
+}
+
 interface ReadoutsProps {
   readonly structure: Structure;
   readonly trajectory: TrajectoryState;
   readonly progress: number;
-  readonly hovered: number | null;
+  readonly hovered: Hit | null;
   readonly level: Level;
 }
 
 /** Sample the timeline this many times for the trend lines. */
-const TREND_SAMPLES = 24;
+const TREND_SAMPLES = 20;
 
 export function Readouts({ structure, trajectory, progress, hovered, level }: ReadoutsProps) {
-  const chain = structure.chains[0]!;
+  const flat = useMemo(() => flatten(structure), [structure]);
 
+  /** Every chain's current frame, concatenated in the same order as `flat`. */
   const current = useMemo(() => {
-    const first = trajectory.chains[0];
-    return first === undefined ? chain.ca : Array.from(frameOf(first, progress));
-  }, [chain.ca, trajectory, progress]);
+    if (trajectory.status !== "ready" || trajectory.chains.length !== structure.chains.length) {
+      return flat.ca;
+    }
+    const out = new Float64Array(flat.residues * 3);
+    let offset = 0;
+    for (const chain of trajectory.chains) {
+      out.set(frameOf(chain, progress), offset);
+      offset += chain.residues * 3;
+    }
+    return out;
+  }, [flat, trajectory, progress, structure.chains.length]);
 
   const metrics = useMemo(() => {
-    const rg = radiusOfGyration(current);
-    const rmsd = superposedRmsd(current, chain.ca);
-    const native = nativeContacts(chain.ca);
-    const q = fractionFormed(native, current);
-
-    // SASA over the alpha carbons only, and only for the trend -- the full
-    // N/CA/C/O/CB surface is 5x the work and this panel updates on every frame.
+    const native = nativeContacts(flat.ca, { chainOf: flat.chainOf });
     const areas = perResidue(
-      shrakeRupley(current, new Array(chain.seq.length).fill(VDW_RADII["C"]!), { points: 96 }),
+      shrakeRupley(current, new Array(flat.residues).fill(VDW_RADII["C"]!), { points: 96 }),
       1,
     );
-    const buried = buriedFraction(relativeAccessibility(chain.seq, areas));
+    return {
+      rg: radiusOfGyration(current),
+      rmsd: superposedRmsd(current, flat.ca),
+      q: fractionFormed(native, current),
+      buried: buriedFraction(relativeAccessibility(flat.sequence, areas)),
+    };
+  }, [current, flat]);
 
-    return { rg, rmsd, q, sasa: areas.reduce((a, b) => a + b, 0), buried };
-  }, [current, chain]);
-
-  // Trend lines, sampled across the whole trajectory once rather than
-  // accumulated frame by frame, so scrubbing backwards shows the same curve.
+  // Sampled across the whole trajectory once rather than accumulated frame by
+  // frame, so scrubbing backwards shows the same curve.
   const trends = useMemo(() => {
-    const first = trajectory.chains[0];
-    if (first === undefined) return null;
-    const native = nativeContacts(chain.ca);
+    if (trajectory.status !== "ready" || trajectory.chains.length !== structure.chains.length) {
+      return null;
+    }
+    const native = nativeContacts(flat.ca, { chainOf: flat.chainOf });
     const rg: number[] = [];
     const rmsd: number[] = [];
     const q: number[] = [];
-    for (let i = 0; i < TREND_SAMPLES; i++) {
-      const frame = frameOf(first, i / (TREND_SAMPLES - 1));
-      rg.push(radiusOfGyration(frame));
-      rmsd.push(superposedRmsd(frame, chain.ca));
-      q.push(fractionFormed(native, frame));
+
+    const scratch = new Float64Array(flat.residues * 3);
+    for (let sample = 0; sample < TREND_SAMPLES; sample++) {
+      let offset = 0;
+      for (const chain of trajectory.chains) {
+        scratch.set(frameOf(chain, sample / (TREND_SAMPLES - 1)), offset);
+        offset += chain.residues * 3;
+      }
+      rg.push(radiusOfGyration(scratch));
+      rmsd.push(superposedRmsd(scratch, flat.ca));
+      q.push(fractionFormed(native, scratch));
     }
     return { rg, rmsd, q };
-  }, [trajectory, chain.ca]);
+  }, [trajectory, flat, structure.chains.length]);
 
-  const bands = useMemo(() => runsOf(chain.ss), [chain.ss]);
+  const bands = useMemo(() => runsOf(flat.secondaryStructure), [flat.secondaryStructure]);
+  const marker = hovered === null ? -1 : globalIndex(flat, hovered.chain, hovered.residue);
 
   return (
     <div className="readouts">
@@ -92,24 +113,33 @@ export function Readouts({ structure, trajectory, progress, hovered, level }: Re
           <Stat id="buried" label="Buried core" value={`${Math.round(metrics.buried * 100)}`} unit="%"
             level={level} />
         </div>
+        <p className="stats__scope">
+          Over all {flat.residues} residues
+          {flat.chainIds.length > 1 ? ` in ${flat.chainIds.length} chains` : ""}.
+        </p>
       </section>
 
       <section className="card">
         <h2>Sequence</h2>
-        <svg className="track" viewBox={`0 0 ${chain.seq.length} 10`} preserveAspectRatio="none"
+        <svg className="track" viewBox={`0 0 ${flat.residues} 10`} preserveAspectRatio="none"
           role="img" aria-label="Secondary structure along the chain">
           {bands.map((band) => (
             <rect key={band.start} x={band.start} width={band.end - band.start} y={0} height={10}
               fill={rgbToHex(STRUCTURE_COLOURS[shapeOf(band.value)])} />
           ))}
-          {hovered !== null && hovered >= 0 ? (
-            <rect x={hovered} width={1.5} y={0} height={10} fill="var(--ink)" />
+          {/* Chain boundaries, so a multi-chain track is not read as one chain. */}
+          {flat.offsets.slice(1).map((offset) => (
+            <rect key={offset} x={offset - 0.5} width={1} y={0} height={10} fill="var(--panel)" />
+          ))}
+          {marker >= 0 ? (
+            <rect x={marker} width={Math.max(1.5, flat.residues / 200)} y={0} height={10}
+              fill="var(--ink)" />
           ) : null}
         </svg>
         <p className="track__caption">
-          {hovered !== null && hovered >= 0
-            ? `${chain.seq[hovered]}${chain.res_nums[hovered]} · ${chain.ss[hovered]}`
-            : `${chain.seq.length} residues · hover the model to inspect`}
+          {marker >= 0
+            ? `${flat.sequence[marker]}${flat.resNums[marker]} · chain ${flat.chainIds[flat.chainOf[marker]!]} · ${flat.secondaryStructure[marker]}`
+            : `${flat.residues} residues · hover the model to inspect`}
         </p>
       </section>
     </div>

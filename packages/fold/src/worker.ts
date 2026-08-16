@@ -7,6 +7,7 @@
  * come back as transferable buffers -- handed over rather than copied.
  */
 
+import type { ChainSpread } from "./spread.js";
 import { buildTrajectory, type Trajectory, type TrajectoryInput } from "./trajectory.js";
 
 export interface BuildRequest {
@@ -19,6 +20,7 @@ export interface BuildRequest {
     readonly secondaryStructure: string;
     readonly chainOf?: Int32Array | number[];
     readonly frames?: number;
+    readonly spread?: ChainSpread;
   };
 }
 
@@ -84,6 +86,7 @@ export function handleRequest(request: BuildRequest): {
       secondaryStructure: request.input.secondaryStructure,
       ...(request.input.chainOf === undefined ? {} : { chainOf: request.input.chainOf }),
       ...(request.input.frames === undefined ? {} : { frames: request.input.frames }),
+      ...(request.input.spread === undefined ? {} : { spread: request.input.spread }),
     };
     return toResponse(request.requestId, buildTrajectory(input));
   } catch (error: unknown) {

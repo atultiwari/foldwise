@@ -13,6 +13,7 @@ import { bondLengthsOf, minimumNonBondedDistance } from "./constraints.js";
 import { formationAt, foldingOnsets } from "./onset.js";
 import { blendTarget, steerToward } from "./morph.js";
 import { hashString } from "./random.js";
+import { NO_SPREAD, spreadFactor, type ChainSpread } from "./spread.js";
 
 /** Frames for a small protein. Enough that scrubbing feels continuous. */
 export const BASE_FRAMES = 96;
@@ -37,6 +38,13 @@ export interface TrajectoryInput {
   /** Chain index per residue, for multi-chain structures. */
   readonly chainOf?: ArrayLike<number>;
   readonly frames?: number;
+  /**
+   * Holds this chain away from the rest of its complex while unfolded.
+   *
+   * Computed across all chains by `chainSpreads`; without it the chains of a
+   * multi-chain structure all start at the origin and interpenetrate.
+   */
+  readonly spread?: ChainSpread;
 }
 
 export interface Trajectory {
@@ -115,6 +123,12 @@ export function buildTrajectory(input: TrajectoryInput): Trajectory {
     const progress = frames > 1 ? frame / (frames - 1) : 1;
     const formation = formationAt(onsets, progress);
 
+    // A rigid translation applied after the chain's geometry is settled, so it
+    // cannot disturb a bond length. Zero by SPREAD_END, and therefore zero on
+    // the final frame.
+    const spread = input.spread ?? NO_SPREAD;
+    const push = spreadFactor(progress) * spread.distance;
+
     if (frame === frames - 1) {
       // The last frame is the deposited structure, exactly. Steering gets very
       // close but "very close" is not what the app promises about the native
@@ -126,7 +140,15 @@ export function buildTrajectory(input: TrajectoryInput): Trajectory {
       steerToward(current, target, residues, bondLengths, clashFloor);
     }
 
-    positions.set(current, frame * stride);
+    if (push > 0) {
+      for (let i = 0; i < residues; i++) {
+        positions[frame * stride + i * 3] = current[i * 3]! + spread.direction[0]! * push;
+        positions[frame * stride + i * 3 + 1] = current[i * 3 + 1]! + spread.direction[1]! * push;
+        positions[frame * stride + i * 3 + 2] = current[i * 3 + 2]! + spread.direction[2]! * push;
+      }
+    } else {
+      positions.set(current, frame * stride);
+    }
     formationBuffer.set(formation, frame * residues);
   }
 

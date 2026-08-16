@@ -13,7 +13,7 @@ export { areaPath, donutArc, extentOf, runsOf, sparklinePath, ticks } from "./ch
 export type { Band, Extent, SparklineOptions } from "./charts.js";
 
 export {
-  chainIndices, coverage, isFoldable, parseStructure, residueCount,
-  structureSchema, unobservedResidues,
+  chainIndices, coverage, flatten, globalIndex, isFoldable, parseStructure,
+  residueCount, structureSchema, unobservedResidues,
 } from "./structure.js";
-export type { Chain, Structure } from "./structure.js";
+export type { Chain, FlatStructure, Structure } from "./structure.js";

@@ -6,7 +6,7 @@ import {
 import {
   DEFAULT_VIEW, MODE_PRESETS, applyPreset, decodeView, encodeView, presetFor,
 } from "../src/urlState.js";
-import { chainIndices, coverage, parseStructure, residueCount, unobservedResidues } from "../src/structure.js";
+import { chainIndices, coverage, flatten, globalIndex, parseStructure, residueCount, unobservedResidues } from "../src/structure.js";
 
 describe("view state in the URL", () => {
   it("encodes nothing when everything is at its default", () => {
@@ -295,5 +295,51 @@ describe("structure schema", () => {
     const two = valid(2);
     const structure = parseStructure({ ...two, chains: [chain(2), { ...chain(3), id: "B" }] });
     expect(Array.from(chainIndices(structure))).toEqual([0, 0, 1, 1, 1]);
+  });
+});
+
+describe("flatten", () => {
+  const chain = (id: string, residues: number, first: number) => ({
+    id, seq: "A".repeat(residues), ss: "C".repeat(residues),
+    res_nums: Array.from({ length: residues }, (_, i) => first + i),
+    ins_codes: " ".repeat(residues),
+    ca: Array.from({ length: residues * 3 }, (_, i) => i),
+    n: new Array(residues * 3).fill(0), c: new Array(residues * 3).fill(0),
+    o: new Array(residues * 3).fill(0), cb: new Array(residues * 3).fill(0),
+    sc: new Array(residues * 3).fill(0), bf: new Array(residues).fill(1), gaps: [],
+  });
+  const structure = parseStructure({
+    id: "t", pdb_id: "1TST", title: "t", method: "X-RAY", resolution: 1,
+    organism: null, classification: null,
+    chains: [chain("A", 2, 1), chain("B", 3, 100)],
+    ligands: [], disulfides: [], foldability: "fold", deposited_residues: 5,
+    provenance: { source: "s", licence: "l", retrieved: "2026-08-16",
+      pdb_deposited: "1994-01-01", pdb_revised: null, pipeline_version: "0.1.0" },
+  });
+
+  it("concatenates every chain, not just the first", () => {
+    // The read-outs measured chains[0] alone, so haemoglobin reported 141
+    // residues of a 574-residue tetramer.
+    const flat = flatten(structure);
+    expect(flat.residues).toBe(5);
+    expect(flat.sequence).toBe("AAAAA");
+    expect(flat.ca.length).toBe(15);
+  });
+
+  it("records which chain each residue belongs to", () => {
+    expect(Array.from(flatten(structure).chainOf)).toEqual([0, 0, 1, 1, 1]);
+  });
+
+  it("keeps author residue numbering", () => {
+    expect(Array.from(flatten(structure).resNums)).toEqual([1, 2, 100, 101, 102]);
+  });
+
+  it("maps a chain-local index to a global one", () => {
+    const flat = flatten(structure);
+    expect(globalIndex(flat, 0, 1)).toBe(1);
+    // Chain B residue 0 is global index 2 -- not 0, which is what dropping
+    // the chain index would give.
+    expect(globalIndex(flat, 1, 0)).toBe(2);
+    expect(globalIndex(flat, 9, 0)).toBe(-1);
   });
 });

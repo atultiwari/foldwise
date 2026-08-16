@@ -9,7 +9,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import type { BuildRequest, WorkerResponse } from "@foldwise/fold";
+import { chainSpreads, type BuildRequest, type WorkerResponse } from "@foldwise/fold";
 import { isFoldable, type Structure } from "@foldwise/ui";
 
 export interface ChainTrajectory {
@@ -103,6 +103,10 @@ export function useTrajectory(structure: Structure | null): TrajectoryState {
 
     worker.addEventListener("message", onMessage);
 
+    // Computed across all chains at once: each needs to know where the others
+    // are, or they all start at the origin and interpenetrate.
+    const spreads = chainSpreads(structure.chains.map((chain) => chain.ca));
+
     structure.chains.forEach((chain, index) => {
       const request: BuildRequest = {
         type: "build",
@@ -111,6 +115,7 @@ export function useTrajectory(structure: Structure | null): TrajectoryState {
           id: `${structure.id}:${chain.id}`,
           native: chain.ca,
           secondaryStructure: chain.ss,
+          spread: spreads[index]!,
         },
       };
       worker.postMessage(request);
