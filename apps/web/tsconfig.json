@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist", "rootDir": "src", "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx", "noEmit": false, "types": ["vite/client"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "references": [{ "path": "../../packages/core" }, { "path": "../../packages/fold" },
+                 { "path": "../../packages/render" }, { "path": "../../packages/ui" }]
+}

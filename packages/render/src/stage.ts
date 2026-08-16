@@ -40,6 +40,7 @@ export interface ChainView {
 }
 
 export interface StageOptions {
+  /** A CSS colour, or "transparent" to let the page show through. */
   readonly background?: string;
   readonly fieldOfView?: number;
   /** Seconds for the camera to close most of a gap. */
@@ -92,9 +93,18 @@ export class Stage {
     private readonly container: HTMLElement,
     private readonly options: StageOptions = {},
   ) {
-    this.renderer = new WebGLRenderer({ antialias: true, alpha: false });
+    // "transparent" is not a colour three.js can parse -- it warns and leaves
+    // the scene opaque white. A see-through canvas needs an alpha buffer and a
+    // null background instead.
+    const transparent = options.background === "transparent";
+    this.renderer = new WebGLRenderer({ antialias: true, alpha: transparent });
     this.renderer.setPixelRatio(Math.min(2, globalThis.devicePixelRatio ?? 1));
-    this.scene.background = new Color(options.background ?? "#101418");
+    if (transparent) {
+      this.renderer.setClearAlpha(0);
+      this.scene.background = null;
+    } else {
+      this.scene.background = new Color(options.background ?? "#101418");
+    }
 
     this.camera = new PerspectiveCamera(options.fieldOfView ?? DEFAULT_FOV, 1, 1, 4000);
     this.camera.position.set(0, 0, this.distance);
@@ -188,6 +198,13 @@ export class Stage {
       chain.bufferGeometry.getAttribute("normal").needsUpdate = true;
       this.updateInstances(chain);
     });
+
+    // Re-fit. An unfolded coil is around three times the size of the folded
+    // state, so framing once at load leaves most of the chain outside the
+    // view for the first half of the animation. The camera's distance is
+    // damped, so this reads as a slow zoom in as the protein collapses rather
+    // than as a jump.
+    this.frameAll();
     this.surfaceStale = true;
     this.scheduleSurface();
   }

@@ -449,7 +449,84 @@ that is recorded above rather than glossed over.
 
 ---
 
-## 10. Not yet validated
+## 10. Application shell — `apps/web` (Phase 5)
+
+**43 tests** over the pure layer: URL state, chart geometry, and the structure
+schema. React components are verified by using them, recorded below.
+
+### Every view is a link
+
+All view state lives in the address bar — structure, timeline position, mode,
+representation, colouring, selected residue. Two decisions make the links
+durable:
+
+- **The timeline is stored as a fraction, not a frame number.** Frame counts
+  depend on chain length and on the engine's settings, so a link pinned to
+  "frame 64" would drift the moment either changed.
+- **Defaults are omitted.** A link to the default view is the bare URL, not a
+  page of parameters that say nothing.
+
+Parsing is defensive: `?t=banana&r=hologram` degrades each bad field to its
+default rather than throwing the view away, because URLs arrive truncated by
+chat clients and edited by hand.
+
+### End-to-end verification
+
+Loaded haemoglobin and scrubbed the timeline. Every Phase 3 invariant holds in
+the running application, computed live from the coordinates on screen:
+
+| At the native state | Value |
+|---|---|
+| RMSD to the deposited structure | **0.00 Å** |
+| Radius of gyration | 14.4 Å |
+| Native contacts formed | **100 %** |
+| Stage label | "Native state" |
+
+At the unfolded end the same read-outs give RMSD 34.9 Å and Rg 37.3 Å, and the
+model renders as four separate sprawling coils — which is what haemoglobin's
+four chains should look like denatured.
+
+Deep links restore correctly: `?p=mpro-nirmatrelvir&t=1&m=chemistry` brings back
+7VH8, the Chemistry preset and the folded state.
+
+### Three bugs, all found by running it
+
+1. **Worker replies were collected in arrival order, not by chain index.**
+   Haemoglobin's chains are 141, 146, 141 and 146 residues, so a 146-residue
+   trajectory could be handed to a 141-residue chain — reading off the end of
+   the array and filling the geometry with `NaN`. The camera then fitted to a
+   `NaN` bounding sphere, collapsed to zero distance, and the molecule vanished
+   entirely. Now slotted by index.
+2. **The camera framed once, at load, on the *native* structure.** An unfolded
+   coil is around three times the size, so most of the chain sat outside the
+   view for the first half of the animation. Re-fitting on every conformation
+   change reads as a slow zoom in as the protein collapses, because the
+   camera's distance is damped.
+3. **`background: "transparent"` is not a colour three.js can parse.** It
+   warned and left the scene opaque white. Replaced with the panel's own
+   colour, read from the CSS custom property so the canvas and its container
+   agree in either theme.
+
+A fourth was found by the tests rather than by looking: a link naming a mode but
+not spelling out its colouring — which is exactly what `encodeView` produces,
+since presets supply those fields — restored the Chemistry tab as selected while
+showing the Fold tab's colouring. `decodeView` now applies the preset first and
+lets explicit parameters override it.
+
+> **On how this was verified:** the preview pane does not run
+> `requestAnimationFrame`, so the render loop had to be driven manually to
+> capture screenshots. The scene, camera and triangle counts were read directly
+> out of the renderer to confirm what was on screen. Frame-rate under sustained
+> animation is still unmeasured — see below.
+
+### Production build
+
+1.5 MB total, with each structure code-split into its own chunk so only the one
+being viewed is fetched.
+
+---
+
+## 11. Not yet validated
 
 Named here so nothing is quietly assumed:
 
@@ -457,5 +534,6 @@ Named here so nothing is quietly assumed:
 - [ ] Salt-bridge cutoff on more than two structures — 12 bridges is a thin basis
 - [ ] Trajectory invariants on multi-chain structures — 1UBI and 7VH8 are single chains
 - [ ] Sustained frame rate under animation — mesh rebuild is measured, the full loop is not
-- [ ] Atoms, bonds, surface and picking — not yet written
+- [ ] React components — only the pure layer beneath them has tests; no E2E yet
+- [ ] Accessibility — keyboard transport works, but nothing has been run through axe
 - [ ] The ΔF508 / T315I variant deltas — nothing computed yet

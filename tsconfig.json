@@ -9,6 +9,12 @@
     },
     {
       "path": "./packages/render"
+    },
+    {
+      "path": "./packages/ui"
+    },
+    {
+      "path": "./apps/web"
     }
   ]
 }

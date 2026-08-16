@@ -5,13 +5,14 @@
   "type": "module",
   "packageManager": "pnpm@9.12.0",
   "scripts": {
-    "dev": "vite --config dev/vite.config.ts",
+    "dev": "pnpm --filter @foldwise/web dev",
     "build": "pnpm -r build",
     "test": "vitest run",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
     "typecheck": "tsc -b --pretty",
-    "data": "uv run --directory pipeline python -m foldwise.cli build"
+    "data": "uv run --directory pipeline python -m foldwise.cli build",
+    "dev:render": "vite --config dev/vite.config.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

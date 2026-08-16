@@ -13,8 +13,9 @@ on screen. Everything that is a model rather than a measurement is labelled as o
 
 ## Status
 
-**Phases 0–4 complete.** Pipeline, biophysics core, trajectory engine and
-renderer are all done and validated. The application shell is next.
+**Phases 0–5 complete.** The application runs: pick a structure, press play, and
+watch it fold, with every read-out computed live from the coordinates on screen.
+What remains is the editorial layer — the writing that makes it teach.
 
 | Phase | Scope | State |
 |---|---|---|
@@ -23,8 +24,8 @@ renderer are all done and validated. The application shell is next.
 | 2 · Core maths | Kabsch, Rg, RMSD, contacts, SASA, H-bonds, salt bridges, composition | ✅ **Done** — 107 tests, SASA within 0.02% of FreeSASA |
 | 3 · Trajectory engine | Calibrated coil, folding schedule, constrained morph | ✅ **Done** — 24 invariant tests, runs in a Worker |
 | 4 · Renderer | Cartoon, atoms, sticks, surface, colour modes, picking | ✅ **Done** — 81 tests, all four representations verified visually |
-| 5 · UI shell | React panels, SVG charts, URL state | ⏳ **Next** |
-| 6 · Editorial layer | Per-structure copy, honesty panel, citations | ⬜ Pending |
+| 5 · UI shell | React panels, SVG charts, URL state | ✅ **Done** — every view is a shareable link |
+| 6 · Editorial layer | Per-structure copy, honesty panel, citations | ⏳ **Next** |
 | 7 · Ship | Export, PWA, accessibility | ⬜ Pending |
 
 Phase gates and the full plan live in the parent workspace, outside this repo:
@@ -33,9 +34,10 @@ Phase gates and the full plan live in the parent workspace, outside this repo:
 ### What works today
 
 ```bash
+pnpm dev        # the application                         -> localhost:5274
 pnpm data       # rebuild all 9 structures from RCSB     -> 9 built, 0 failed
-pnpm test       # core, trajectory engine, renderer       -> 212 passed
-pnpm dev        # visual harness for the renderer         -> localhost:5273
+pnpm test       # core, fold, render, ui                  -> 255 passed
+pnpm dev:render # renderer-only visual harness            -> localhost:5273
 pnpm coverage   #                                        -> 99% statements
 pnpm typecheck
 cd pipeline && uv run pytest                            # -> 51 passed
@@ -49,10 +51,10 @@ cd pipeline && uv run python -m foldwise.cli reference
 
 ### What does not exist yet
 
-- No application shell yet. `pnpm dev` opens the renderer's visual harness,
-  not the product.
-- The renderer has cartoon, spacefill, sticks and surface, plus residue
-  picking — but nothing yet drives it from a timeline.
+- No editorial content. Structures have no story, no annotations and no
+  citations yet — that is Phase 6, and it is what makes this teach rather than
+  merely display.
+- No assessment, no Anki export, no compare mode.
 
 ---
 
@@ -147,10 +149,12 @@ foldwise/
 │   ├── fold/                 Folding trajectory engine
 │   │   └── src/              random, spatialHash, coil, onset, constraints,
 │   │                         morph, trajectory, worker
-│   └── render/               Geometry, colour and the renderer
-│       └── src/              spline, profile, ribbon, instanced, surface,
-│                             palette, colorModes, camera, picking,
-│                             stage (the only three.js file)
+│   ├── render/               Geometry, colour and the renderer
+│   │   └── src/              spline, profile, ribbon, instanced, surface,
+│   │                         palette, colorModes, camera, picking,
+│   │                         stage (the only three.js file)
+│   └── ui/                   URL state, chart geometry, structure schema
+├── apps/web/                 The application -- React shell around the renderer
 ├── dev/                      Visual harness -- `pnpm dev`
 ├── data/
 │   ├── cache/                Raw downloads — gitignored
@@ -158,8 +162,8 @@ foldwise/
 └── docs/VALIDATION.md        What has actually been proven, with numbers
 ```
 
-`apps/web` and `packages/ui` are created when their phase begins, rather than
-sitting empty.
+Every view is a shareable link: `?p=mpro-nirmatrelvir&t=1&m=chemistry` restores
+the structure, the timeline position and the preset.
 
 ---
 
