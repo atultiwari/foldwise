@@ -526,7 +526,60 @@ being viewed is fetched.
 
 ---
 
-## 11. Not yet validated
+## 11. Editorial content — `packages/content` (Phase 6)
+
+**44 tests.** Prose is the part of this project most likely to be quietly
+wrong: nothing crashes when a residue number is off by one or a mechanism is
+misremembered. So the content is written to be *checkable*.
+
+### Residue claims are verified against the structures
+
+Every residue an annotation names carries the amino acid it is claimed to be,
+and the test looks it up in the emitted structure file:
+
+```ts
+{ label: "Thr315 — the gatekeeper",
+  residues: [{ chain: "A", resNum: 315, code: "T" }] }
+```
+
+Writing "Thr315" and being wrong is a test failure, not a plausible sentence
+nobody catches. **It caught one on the first run:** an annotation claimed
+Gly464 as part of CFTR's Walker A motif. The structure says residue 464 is
+**lysine** — and checking the sequence shows the motif is G458-S459-T460-G461-
+A462-G463-**K464**-T465, where Lys464 is the catalytic lysine that contacts the
+nucleotide phosphates. The corrected annotation is both accurate and a better
+teaching point than the one I wrote.
+
+Currently 16 residue claims across 9 structures, all verified.
+
+### Other content gates
+
+- Every structure in the library has editorial content, and every entry belongs
+  to a story that lists it
+- Every citation reference resolves, and every citation defined is actually
+  cited — an orphaned source usually means a claim was edited away and its
+  replacement left unsourced
+- All three reading levels are written for every story and structure, and the
+  lay text must differ from the researcher text (which catches the common
+  failure of writing one register and pasting it into all three)
+- Every structure that cannot be animated carries a caveat explaining why — a
+  reader is owed an explanation for a dead timeline
+- The ΔF508 construct must disclose its solubilising mutations
+- The honesty panel must state that the folding path has never been observed,
+  that this is not a medical device, and the ACMG limit on structural evidence
+
+### The honesty panel
+
+Written before the features it describes. Five things declared real, four
+declared illustration, five limits — deliberately balanced, because a long list
+of guarantees beside a one-line disclaimer is a way of not saying something.
+A test enforces that balance.
+
+Every estimate in the interface is traceable to a line in it.
+
+---
+
+## 12. Not yet validated
 
 Named here so nothing is quietly assumed:
 

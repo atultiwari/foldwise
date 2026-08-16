@@ -3,7 +3,11 @@ import { useEffect, useState } from "react";
 import { COLOR_MODES } from "@foldwise/render";
 import { REPRESENTATIONS, coverage, unobservedResidues, type Structure } from "@foldwise/ui";
 
+import type { Level } from "@foldwise/content";
+
+import { HonestySheet } from "./components/HonestySheet.js";
 import { Library } from "./components/Library.js";
+import { StoryPanel } from "./components/StoryPanel.js";
 import { ModeTabs } from "./components/ModeTabs.js";
 import { Readouts } from "./components/Readouts.js";
 import { StageView } from "./components/StageView.js";
@@ -19,6 +23,8 @@ export function App() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [hovered, setHovered] = useState<number | null>(null);
   const [speed, setSpeed] = useState(1);
+  const [level, setLevel] = useState<Level>("student");
+  const [honestyOpen, setHonestyOpen] = useState(false);
 
   useEffect(() => listenToHistory(), []);
 
@@ -51,10 +57,14 @@ export function App() {
           <p>Watch real proteins fold — and see why it matters clinically</p>
         </div>
         <ModeTabs />
+        <button type="button" className="honesty-link" onClick={() => setHonestyOpen(true)}>
+          What&apos;s real here?
+        </button>
       </header>
 
       <aside className="rail rail--left">
         <Library />
+        <StoryPanel structureId={view.structure} level={level} onLevel={setLevel} />
       </aside>
 
       <main className="centre">
@@ -119,13 +129,18 @@ export function App() {
               </dl>
               <p className="disclaimer">
                 Structure and measurements are real. The folding path between the
-                unfolded and folded states is a model — no protein's route has
-                been observed. Not a medical device.
+                unfolded and folded states is a model — no protein&apos;s route has
+                been observed.{" "}
+                <button type="button" onClick={() => setHonestyOpen(true)}>
+                  What&apos;s real here?
+                </button>
               </p>
             </section>
           </>
         ) : null}
       </aside>
+
+      <HonestySheet open={honestyOpen} onClose={() => setHonestyOpen(false)} />
 
       <footer className="foot">
         <Transport trajectory={trajectory} speed={speed} onSpeed={setSpeed} />

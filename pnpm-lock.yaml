@@ -29,6 +29,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@foldwise/content':
+        specifier: workspace:*
+        version: link:../../packages/content
       '@foldwise/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -61,6 +64,12 @@ importers:
         specifier: ^6.0.5
         version: 6.0.5(vite@8.2.1(@types/node@22.20.1))
 
+  packages/content:
+    dependencies:
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+
   packages/core: {}
 
   packages/fold:
@@ -84,6 +93,9 @@ importers:
 
   packages/ui:
     dependencies:
+      '@foldwise/content':
+        specifier: workspace:*
+        version: link:../content
       '@foldwise/core':
         specifier: workspace:*
         version: link:../core

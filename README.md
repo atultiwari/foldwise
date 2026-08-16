@@ -13,9 +13,10 @@ on screen. Everything that is a model rather than a measurement is labelled as o
 
 ## Status
 
-**Phases 0–5 complete.** The application runs: pick a structure, press play, and
-watch it fold, with every read-out computed live from the coordinates on screen.
-What remains is the editorial layer — the writing that makes it teach.
+**Phases 0–6 complete.** The application runs and it teaches: four clinical
+stories, three reading levels, verified residue annotations, sourced claims, and
+an honesty panel that draws the line between measurement and model. Phase 7 is
+export, offline and accessibility.
 
 | Phase | Scope | State |
 |---|---|---|
@@ -25,8 +26,8 @@ What remains is the editorial layer — the writing that makes it teach.
 | 3 · Trajectory engine | Calibrated coil, folding schedule, constrained morph | ✅ **Done** — 24 invariant tests, runs in a Worker |
 | 4 · Renderer | Cartoon, atoms, sticks, surface, colour modes, picking | ✅ **Done** — 81 tests, all four representations verified visually |
 | 5 · UI shell | React panels, SVG charts, URL state | ✅ **Done** — every view is a shareable link |
-| 6 · Editorial layer | Per-structure copy, honesty panel, citations | ⏳ **Next** |
-| 7 · Ship | Export, PWA, accessibility | ⬜ Pending |
+| 6 · Editorial layer | Clinical stories, annotations, citations, honesty panel | ✅ **Done** — 44 tests; residue claims checked against the structures |
+| 7 · Ship | Export, PWA, accessibility | ⏳ **Next** |
 
 Phase gates and the full plan live in the parent workspace, outside this repo:
 `../docs/02-BUILD-PLAN.md`.
@@ -36,7 +37,7 @@ Phase gates and the full plan live in the parent workspace, outside this repo:
 ```bash
 pnpm dev        # the application                         -> localhost:5274
 pnpm data       # rebuild all 9 structures from RCSB     -> 9 built, 0 failed
-pnpm test       # core, fold, render, ui                  -> 255 passed
+pnpm test       # core, fold, render, ui, content         -> 299 passed
 pnpm dev:render # renderer-only visual harness            -> localhost:5273
 pnpm coverage   #                                        -> 99% statements
 pnpm typecheck
@@ -51,10 +52,8 @@ cd pipeline && uv run python -m foldwise.cli reference
 
 ### What does not exist yet
 
-- No editorial content. Structures have no story, no annotations and no
-  citations yet — that is Phase 6, and it is what makes this teach rather than
-  merely display.
-- No assessment, no Anki export, no compare mode.
+- No assessment, no Anki export, no compare mode, no figure export.
+- No offline mode, and no accessibility audit yet.
 
 ---
 
@@ -153,7 +152,9 @@ foldwise/
 │   │   └── src/              spline, profile, ribbon, instanced, surface,
 │   │                         palette, colorModes, camera, picking,
 │   │                         stage (the only three.js file)
-│   └── ui/                   URL state, chart geometry, structure schema
+│   ├── ui/                   URL state, chart geometry, structure schema
+│   └── content/              Clinical stories, annotations, citations,
+│                             the honesty panel -- data only, no React
 ├── apps/web/                 The application -- React shell around the renderer
 ├── dev/                      Visual harness -- `pnpm dev`
 ├── data/

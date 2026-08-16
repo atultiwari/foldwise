@@ -11,6 +11,9 @@
       "path": "./packages/render"
     },
     {
+      "path": "./packages/content"
+    },
+    {
       "path": "./packages/ui"
     },
     {

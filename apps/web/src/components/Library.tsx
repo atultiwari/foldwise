@@ -5,20 +5,10 @@
  * about sickle cell, not about beta-grasp topology.
  */
 
+import { structureContent } from "@foldwise/content";
+
 import { LIBRARY } from "../data/library.js";
 import { useView } from "../state/store.js";
-
-const LABELS: Record<string, { name: string; role: string }> = {
-  "hba-deoxy": { name: "Haemoglobin A", role: "wild type" },
-  "hbs-deoxy": { name: "Haemoglobin S", role: "variant" },
-  "nbd1-wt": { name: "CFTR NBD1", role: "wild type" },
-  "nbd1-df508": { name: "CFTR NBD1 ΔF508", role: "variant" },
-  "cftr-full": { name: "CFTR, full length", role: "context" },
-  "abl-imatinib": { name: "ABL + imatinib", role: "drug bound" },
-  "abl-t315i-ponatinib": { name: "ABL T315I + ponatinib", role: "resistance" },
-  "mpro-nirmatrelvir": { name: "Mpro + nirmatrelvir", role: "drug bound" },
-  "mpro-dimer": { name: "Mpro dimer", role: "context" },
-};
 
 export function Library() {
   const current = useView((s) => s.structure);
@@ -31,7 +21,13 @@ export function Library() {
           <h2>{group.story}</h2>
           <ul>
             {group.entries.map((entry) => {
-              const label = LABELS[entry.id] ?? { name: entry.id, role: "" };
+              // Names come from the editorial content, so there is one place
+              // to change them and the test that checks coverage catches gaps.
+              const content = structureContent(entry.id);
+              const label = {
+                name: content?.name ?? entry.id,
+                role: content?.role.replace("-", " ") ?? "",
+              };
               return (
                 <li key={entry.id}>
                   <button

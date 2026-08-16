@@ -67,7 +67,9 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
 
 .app {
   display: grid;
-  grid-template-columns: 232px minmax(0, 1fr) 300px;
+  /* The story rail is wider than the read-outs: the clinical framing is the
+     point of the page, and the numbers support it rather than the reverse. */
+  grid-template-columns: 300px minmax(0, 1fr) 286px;
   grid-template-rows: auto minmax(0, 1fr) auto;
   grid-template-areas: "head head head" "left centre right" "foot foot foot";
   gap: 10px;
@@ -244,3 +246,91 @@ button { cursor: pointer; background: none; border: 0; padding: 0; }
   body { overflow: auto; }
   .app { height: auto; min-height: 100%; }
 }
+
+/* ── Story panel ────────────────────────────────────────────────────────── */
+
+.story__head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.story__head h2 { margin: 0; }
+.levels { display: flex; gap: 2px; margin-left: auto; }
+.levels button {
+  padding: 3px 7px; border-radius: 6px; font-size: 10.5px; color: var(--ink-faint);
+}
+.levels button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+
+.story__question {
+  margin: 0 0 12px; font-size: 13px; line-height: 1.45; color: var(--ink-soft);
+  font-family: ui-serif, "Iowan Old Style", Palatino, Georgia, serif; font-style: italic;
+}
+.story__name {
+  margin: 0; font-size: 14.5px; display: flex; align-items: baseline; gap: 7px;
+}
+.story__role {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--ink-faint); font-weight: 600;
+}
+.story__tagline { margin: 1px 0 8px; font-size: 12px; color: var(--ink-faint); }
+.story__summary { margin: 0 0 10px; font-size: 12.5px; line-height: 1.55; }
+.story__fact {
+  margin: 0 0 12px; padding: 9px 11px; font-size: 12px; line-height: 1.5;
+  background: var(--accent-soft); border-radius: 8px;
+}
+
+.story h4 {
+  margin: 14px 0 6px; font-size: 10.5px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--ink-faint); font-weight: 600;
+}
+.annotations { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.annotations li { display: flex; flex-direction: column; gap: 2px; font-size: 12px; line-height: 1.45; }
+.annotations li span { color: var(--ink-soft); }
+.annotations__where {
+  font-family: var(--mono); font-size: 10.5px; color: var(--accent) !important;
+}
+
+.caveats { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.caveats p { margin: 0 0 7px; font-size: 11.5px; line-height: 1.45; color: var(--ink-faint); }
+
+.objectives, .sources { margin-top: 10px; font-size: 11.5px; }
+.objectives summary, .sources summary { cursor: pointer; color: var(--ink-faint); }
+.objectives ul, .sources ol { margin: 7px 0 0; padding-left: 18px; color: var(--ink-soft); }
+.objectives li, .sources li { margin-bottom: 4px; line-height: 1.4; }
+.sources a { color: var(--ink-soft); }
+
+.honesty-link {
+  font-size: 12px; color: var(--accent); text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.disclaimer button {
+  color: var(--accent); text-decoration: underline; text-underline-offset: 2px;
+  font-size: inherit;
+}
+
+/* ── Honesty sheet ──────────────────────────────────────────────────────── */
+
+.sheet {
+  position: fixed; inset: 0; z-index: 50; display: grid; place-items: center;
+  background: #0b0e1188; backdrop-filter: blur(3px); padding: 24px;
+}
+.sheet__panel {
+  position: relative; max-width: 860px; max-height: 88vh; overflow-y: auto;
+  background: var(--panel); border-radius: 16px; box-shadow: var(--shadow);
+  padding: 30px 34px;
+}
+.sheet__close { position: absolute; top: 16px; right: 18px; color: var(--ink-faint); font-size: 15px; }
+.sheet__panel h2 {
+  margin: 0 0 10px; font-size: 22px; text-transform: none; letter-spacing: -0.01em;
+  color: var(--ink); font-family: ui-serif, "Iowan Old Style", Palatino, Georgia, serif;
+}
+.sheet__lead { margin: 0 0 22px; font-size: 14px; line-height: 1.6; color: var(--ink-soft); max-width: 62ch; }
+.sheet__split { display: grid; gap: 24px; }
+@media (min-width: 720px) { .sheet__split { grid-template-columns: 1fr 1fr; } }
+.sheet__split h3 { margin: 0 0 10px; font-size: 11px; letter-spacing: 0.11em; text-transform: uppercase; }
+.sheet__real { color: var(--good); }
+.sheet__model { color: var(--accent); }
+.sheet__split p { margin: 0 0 10px; font-size: 12.5px; line-height: 1.55; }
+.sheet__panel > h3 {
+  margin: 24px 0 8px; font-size: 11px; letter-spacing: 0.11em;
+  text-transform: uppercase; color: var(--ink-faint);
+}
+.sheet__limits { margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.55; color: var(--ink-soft); }
+.sheet__limits li { margin-bottom: 6px; }
+.sheet__credit { margin: 20px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--ink-faint); }
