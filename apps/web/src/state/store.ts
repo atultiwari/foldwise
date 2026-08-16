@@ -22,6 +22,8 @@ interface ViewStore extends ViewState {
   readonly setSelected: (selected: number) => void;
   readonly setPlaying: (playing: boolean) => void;
   readonly setCompare: (compare: string) => void;
+  readonly setStage: (stage: number) => void;
+  readonly setVars: (vars: string) => void;
   readonly adopt: (view: ViewState) => void;
 }
 
@@ -62,6 +64,8 @@ export const useView = create<ViewStore>((set, get) => {
     setSelected: (selected) => update({ selected }),
     setPlaying: (playing) => update({ playing }),
     setCompare: (compare) => update({ compare }),
+    setStage: (stage) => update({ stage: Math.max(0, stage) }),
+    setVars: (vars) => update({ vars }),
     adopt: (view) => {
       set(view as never);
       publish(view);
@@ -79,6 +83,8 @@ function stripActions(state: ViewStore | ViewState): ViewState {
     selected: state.selected,
     compare: state.compare,
     playing: state.playing,
+    stage: state.stage,
+    vars: state.vars,
   };
 }
 

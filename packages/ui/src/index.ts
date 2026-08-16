@@ -5,7 +5,7 @@
 
 export {
   COLOR_MODE_KEYS, DEFAULT_VIEW, MODES, MODE_PRESETS, REPRESENTATIONS,
-  applyPreset, decodeView, encodeView, presetFor, viewStateSchema,
+  applyPreset, decodeVars, decodeView, encodeVars, encodeView, presetFor, viewStateSchema,
 } from "./urlState.js";
 export type { ColorModeKey, Mode, ModePreset, Representation, ViewState } from "./urlState.js";
 

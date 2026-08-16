@@ -2,7 +2,7 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    include: ["packages/*/test/**/*.test.ts"],
+    include: ["packages/*/test/**/*.test.ts", "apps/*/test/**/*.test.ts"],
     // Remove once Phase 2 lands its first test; until then an empty run is
     // the honest result, not a failure.
     passWithNoTests: true,

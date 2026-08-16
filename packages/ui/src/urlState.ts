@@ -19,39 +19,58 @@ export const REPRESENTATIONS = ["cartoon", "spacefill", "sticks", "surface"] as 
 export const COLOR_MODE_KEYS = [
   "structure", "direction", "hydropathy", "charge", "flexibility", "burial", "chain",
 ] as const;
-export const MODES = ["fold", "anatomy", "chemistry"] as const;
+export const MODES = ["mechanism", "fold", "anatomy", "chemistry"] as const;
 
 export type Representation = (typeof REPRESENTATIONS)[number];
 export type ColorModeKey = (typeof COLOR_MODE_KEYS)[number];
 export type Mode = (typeof MODES)[number];
 
-/** Frames are stored as a position in [0, 1] so a link survives a frame-count change. */
-const progress = z.coerce.number().min(0).max(1).catch(0);
-
-export const viewStateSchema = z.object({
-  structure: z.string().min(1).max(64).catch("hba-deoxy"),
-  progress,
-  mode: z.enum(MODES).catch("fold"),
-  representation: z.enum(REPRESENTATIONS).catch("cartoon"),
-  color: z.enum(COLOR_MODE_KEYS).catch("structure"),
+/**
+ * Each field on its own, so a mangled parameter can fall back to what the rest
+ * of the link implies rather than to a fixed constant.
+ *
+ * `?m=fold&t=banana` should give the Fold preset's timeline position, not some
+ * other mode's. That only works if the fallback is the base view, which the
+ * schema cannot see — hence per-field validation in `decodeView` below.
+ */
+const FIELDS = {
+  structure: z.string().min(1).max(64),
+  /** Frames are a position in [0, 1] so a link survives a frame-count change. */
+  progress: z.coerce.number().min(0).max(1),
+  mode: z.enum(MODES),
+  representation: z.enum(REPRESENTATIONS),
+  color: z.enum(COLOR_MODE_KEYS),
   /** Selected residue index, or -1 for none. */
-  selected: z.coerce.number().int().min(-1).catch(-1),
+  selected: z.coerce.number().int().min(-1),
   /** Comparison pair id, or "" for none. */
-  compare: z.string().max(64).catch(""),
-  playing: z.enum(["0", "1"]).transform((v) => v === "1").catch(false),
-});
+  compare: z.string().max(64),
+  playing: z.enum(["0", "1"]).transform((v) => v === "1"),
+  /** Which stage of the causal chain, in Mechanism mode. */
+  stage: z.coerce.number().int().min(0).max(31),
+  /**
+   * Mechanism control settings, as `id:value` pairs.
+   *
+   * These are what make a mechanism link worth pasting: not "here is sickle
+   * cell" but "here is sickle cell at low oxygen, at the assembly step".
+   */
+  vars: z.string().max(160),
+} as const;
+
+export const viewStateSchema = z.object(FIELDS);
 
 export type ViewState = z.infer<typeof viewStateSchema>;
 
 export const DEFAULT_VIEW: ViewState = {
   structure: "hba-deoxy",
-  progress: 0,
-  mode: "fold",
+  progress: 1,
+  mode: "mechanism",
   representation: "cartoon",
-  color: "structure",
+  color: "hydropathy",
   selected: -1,
   compare: "",
   playing: false,
+  stage: 0,
+  vars: "",
 };
 
 /** Short keys, because these end up in links people paste into messages. */
@@ -64,6 +83,8 @@ const KEYS = {
   selected: "s",
   compare: "cmp",
   playing: "go",
+  stage: "st",
+  vars: "v",
 } as const;
 
 export function decodeView(search: string): ViewState {
@@ -81,9 +102,14 @@ export function decodeView(search: string): ViewState {
   const mode = MODES.includes(raw["mode"] as Mode) ? (raw["mode"] as Mode) : DEFAULT_VIEW.mode;
   const base = applyPreset(DEFAULT_VIEW, mode);
 
-  // `catch` on each field means a mangled parameter degrades to its default
-  // instead of throwing the whole view away.
-  return viewStateSchema.parse({ ...base, ...raw });
+  // Each parameter is validated on its own, so one mangled field degrades to
+  // the base view rather than throwing the whole link away.
+  const view: Record<string, unknown> = { ...base };
+  for (const [field, value] of Object.entries(raw)) {
+    const parsed = FIELDS[field as keyof typeof FIELDS].safeParse(value);
+    if (parsed.success) view[field] = parsed.data;
+  }
+  return view as ViewState;
 }
 
 /**
@@ -106,6 +132,8 @@ export function encodeView(view: ViewState): string {
   if (view.selected !== DEFAULT_VIEW.selected) params.set(KEYS.selected, String(view.selected));
   if (view.compare !== DEFAULT_VIEW.compare) params.set(KEYS.compare, view.compare);
   if (view.playing) params.set(KEYS.playing, "1");
+  if (view.stage !== DEFAULT_VIEW.stage) params.set(KEYS.stage, String(view.stage));
+  if (view.vars !== DEFAULT_VIEW.vars) params.set(KEYS.vars, view.vars);
 
   const query = params.toString();
   return query.length > 0 ? `?${query}` : "";
@@ -129,6 +157,14 @@ export interface ModePreset {
 }
 
 export const MODE_PRESETS: readonly ModePreset[] = [
+  {
+    key: "mechanism",
+    label: "Mechanism",
+    hint: "Follow the chain from gene to patient, and change what causes it.",
+    representation: "cartoon",
+    color: "hydropathy",
+    jumpToNative: true,
+  },
   {
     key: "fold",
     label: "Fold",
@@ -169,5 +205,38 @@ export function applyPreset(view: ViewState, mode: Mode): ViewState {
     color: preset.color,
     progress: preset.jumpToNative ? 1 : view.progress,
     playing: preset.jumpToNative ? false : view.playing,
+    // Leaving Mechanism mode should not carry its stage into a mode that has
+    // no stages; re-entering it starts at the top of the chain.
+    stage: mode === "mechanism" ? view.stage : 0,
   };
 }
+
+/**
+ * Mechanism control settings, to and from the URL.
+ *
+ * `genotype:hbs,oxygen:low` — short enough to survive a chat client, and
+ * readable enough that a lecturer can see what a link says before sending it.
+ * Both directions are total: unparseable input yields an empty setting rather
+ * than an exception, because this is a URL and URLs arrive mangled.
+ */
+export function encodeVars(vars: Readonly<Record<string, string>>): string {
+  return Object.entries(vars)
+    .filter(([id, value]) => SAFE_TOKEN.test(id) && SAFE_TOKEN.test(value))
+    .sort(([a], [b]) => (a < b ? -1 : 1))
+    .map(([id, value]) => `${id}:${value}`)
+    .join(",");
+}
+
+export function decodeVars(encoded: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const pair of encoded.split(",")) {
+    const [id, value] = pair.split(":");
+    if (id === undefined || value === undefined) continue;
+    if (!SAFE_TOKEN.test(id) || !SAFE_TOKEN.test(value)) continue;
+    out[id] = value;
+  }
+  return out;
+}
+
+/** Control and option identifiers are authored, so this is a tight allowlist. */
+const SAFE_TOKEN = /^[a-z0-9][a-z0-9-]{0,31}$/;

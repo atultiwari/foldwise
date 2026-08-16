@@ -67,61 +67,69 @@ export interface StoryTour {
  * Bumped when the orientation steps change materially, so a rewritten tour
  * re-fires for people who have already seen the old one.
  */
-export const ORIENTATION_VERSION = 2;
+export const ORIENTATION_VERSION = 3;
 
+/**
+ * The on-ramp for a first visit.
+ *
+ * Rewritten for Mechanism mode, which is what a first-time reader now lands
+ * on. The previous version walked through the timeline and the read-outs —
+ * true, but it answered "what do these controls do?" when the question a
+ * doctor actually arrives with is "what does this tell me about my patient?".
+ */
 export const ORIENTATION: readonly TourStep[] = [
   {
-    id: "library",
-    anchor: { kind: "element", selector: ".library" },
-    title: "Start with a disease, not a protein",
+    id: "chain",
+    anchor: { kind: "element", selector: ".chain" },
+    title: "The whole story, gene to patient",
     copy: {
-      lay: "The list is grouped by illness. Pick the condition you want to understand and the right molecules come with it.",
-      student: "Structures are grouped by clinical story rather than by fold class. Each story pairs a wild type with the variant or drug complex that explains it.",
-      researcher: "Curated pairs per story: wild type, variant, resistance and context entries, chosen so the comparison carries the mechanism.",
+      lay: "Across the top is the chain of cause and effect, from the change in the gene all the way to what the patient feels. Click any link to go straight there.",
+      student: "The causal chain, one step per scale: gene, protein, assembly, cell, patient. Every step is reachable directly — skip the ones you already know.",
+      researcher: "Stages ordered by scale. The 3D model can only ever show the protein steps; the rest are drawn, and labelled as such.",
+    },
+    placement: "below",
+  },
+  {
+    id: "controls",
+    anchor: { kind: "element", selector: ".controls" },
+    title: "Change the cause, not the slide",
+    copy: {
+      lay: "These are the things that actually decide what happens. Switch the oxygen from low to normal and watch the whole chain above change — that is why a crisis is triggered rather than constant.",
+      student: "Set the genotype and the trigger, and every downstream step updates at once. Deriving why hypoxia precipitates a crisis beats being told it does.",
+      researcher: "Control settings resolve an outcome at each stage. Nothing is simulated — the rules encode established biology and are cited.",
     },
     placement: "right",
   },
   {
     id: "stage",
     anchor: { kind: "element", selector: ".stage" },
-    title: "The model is real, and you can handle it",
+    title: "Real structure, or an honest drawing",
     copy: {
-      lay: "Drag to turn it, scroll to zoom, hover to see which building block you are pointing at. These are real measured coordinates, not a drawing.",
-      student: "Deposited coordinates from the Protein Data Bank. Drag to rotate, scroll to zoom, hover for residue identity and secondary structure.",
-      researcher: "Coordinates as deposited. Hover picks the nearest α-carbon in screen space; the panel below reports chain, residue number and DSSP state.",
+      lay: "At the protein steps you are looking at a real measured molecule, flown right up to the building block being discussed and labelled. At the cell and patient steps there is nothing to measure, so you get a diagram — and it says so.",
+      student: "Structure stages show deposited coordinates, focused on the residue under discussion with the rest dimmed. Schematic stages are drawn, because fibre assembly and vaso-occlusion have no coordinate file.",
+      researcher: "Deposited coordinates with a camera fitted to the residue neighbourhood. The provenance line under the panel always states which kind you are looking at.",
     },
     placement: "left",
   },
   {
-    id: "transport",
-    anchor: { kind: "element", selector: ".transport" },
-    title: "Press play to watch it fold",
+    id: "playback",
+    anchor: { kind: "element", selector: ".playback" },
+    title: "Step it, or let it run",
     copy: {
-      lay: "This slider runs from a floppy, unfolded string to the finished shape. Space plays and pauses; the arrow keys step frame by frame.",
-      student: "The timeline runs from a calibrated unfolded state to the deposited structure. Space plays, arrows step, Home and End jump to either end.",
-      researcher: "96 or 192 frames depending on chain length, generated in a worker. Endpoints are real; the path between them is a model.",
+      lay: "Move through the chain one step at a time, or press play and let it walk itself. You can change the controls at any point without losing your place.",
+      student: "Manual stepping or auto-advance at three speeds. Changing a control mid-chain re-resolves every stage without moving you.",
+      researcher: "Stage and control state both live in the URL, so any point in the chain is a link.",
     },
     placement: "above",
   },
   {
-    id: "stats",
-    anchor: { kind: "element", selector: ".stats" },
-    title: "These numbers are measured, not written",
-    copy: {
-      lay: "Every number here is worked out from the shape currently on screen. Scrub the slider and watch them move. Tap any question mark to find out what one means.",
-      student: "Computed live from the coordinates on screen, over every chain. Each carries an explainer covering what it is and what a rise or fall means.",
-      researcher: "Rg, RMSD after Kabsch superposition, fraction of native contacts including inter-chain, and buried fraction — recomputed per frame.",
-    },
-    placement: "left",
-  },
-  {
     id: "modes",
     anchor: { kind: "element", selector: ".modes" },
-    title: "Three ways of looking",
+    title: "And when you want the molecule itself",
     copy: {
-      lay: "Fold shows it moving. Anatomy shows the finished shape close up. Chemistry shows which parts hide from water.",
-      student: "Presets rather than settings: each tab sets representation, colouring and timeline position together to answer one question.",
-      researcher: "Each preset bundles a representation, colour mode and timeline position. The underlying controls stay available beside the model.",
+      lay: "Fold plays the protein assembling itself. Anatomy shows the finished shape close up. Chemistry shows which parts hide from water.",
+      student: "The other three tabs are presets over the same structure: each sets representation, colouring and timeline position to answer one question.",
+      researcher: "Presets bundling representation, colour mode and timeline position. The underlying controls stay available beside the model.",
     },
     placement: "below",
   },
@@ -131,7 +139,7 @@ export const ORIENTATION: readonly TourStep[] = [
     title: "Know what is real before you trust it",
     copy: {
       lay: "The shapes and the numbers are real. The animation between them is an educated guess, because nobody has ever watched a protein fold. This link says exactly which is which.",
-      student: "Structures and measurements are real; the folding pathway is a model. This panel separates the two explicitly, and states what the tool must not be used for.",
+      student: "Structures and measurements are real; the folding pathway and the mechanism outcomes are models. This panel separates them explicitly, and states what the tool must not be used for.",
       researcher: "Declares what is measured, what is modelled, and the limits — including that structural evidence maps to PP3/BP4 at most under ACMG/AMP.",
     },
     placement: "below",

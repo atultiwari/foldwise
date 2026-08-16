@@ -54,6 +54,24 @@ export const HONESTY: Honesty = {
 
   illustration: [
     {
+      title: "The mechanism diagrams",
+      text:
+        "Everything Mechanism mode shows above the atomic scale — a fibre growing, a red " +
+        "cell deforming, a vessel occluding, a channel being degraded — is drawn, not " +
+        "measured. There are no coordinates for any of it. Each drawing is labelled as a " +
+        "diagram in the interface itself, and the panel it sits in says which of the two " +
+        "you are looking at.",
+    },
+    {
+      title: "What the controls predict",
+      text:
+        "Setting the oxygen tension or the genotype does not run a simulation. Nothing is " +
+        "computed from physics. Each outcome is established biology, written down and " +
+        "cited, and selected by the settings — so it is as reliable as the literature " +
+        "behind it and no more. Real patients sit on a spectrum these switches cannot " +
+        "represent.",
+    },
+    {
       title: "The route between them",
       text:
         "Nobody has ever observed a protein folding. It is far too fast and far too small. " +

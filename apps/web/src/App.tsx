@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { COLOR_MODES } from "@foldwise/render";
 import { REPRESENTATIONS, coverage, unobservedResidues, type Structure } from "@foldwise/ui";
@@ -16,6 +16,13 @@ import { Library } from "./components/Library.js";
 import { StoryPanel } from "./components/StoryPanel.js";
 import { Tour, shouldAutoStart, type TourRun } from "./components/Tour.js";
 import { ModeTabs } from "./components/ModeTabs.js";
+import { ChainStepper } from "./components/mechanism/ChainStepper.js";
+import { Controls } from "./components/mechanism/Controls.js";
+import { Outcome } from "./components/mechanism/Outcome.js";
+import { Playback, type Speed } from "./components/mechanism/Playback.js";
+import { StagePanel } from "./components/mechanism/StagePanel.js";
+import { resolveResidues } from "./components/mechanism/focus.js";
+import { useMechanism } from "./components/mechanism/useMechanism.js";
 import { Readouts, type Hit } from "./components/Readouts.js";
 import { StageView } from "./components/StageView.js";
 import { Transport } from "./components/Transport.js";
@@ -25,9 +32,11 @@ import { listenToHistory, useView } from "./state/store.js";
 import type { ColorModeKey, Representation } from "@foldwise/ui";
 
 /** The display name a comparison label should show. */
-function appClass(comparing: boolean, layout: string): string {
-  if (!comparing) return "app";
-  return layout === "side-by-side" ? "app app--comparing app--split" : "app app--comparing";
+function appClass(comparing: boolean, layout: string, mechanism: boolean): string {
+  if (comparing) {
+    return layout === "side-by-side" ? "app app--comparing app--split" : "app app--comparing";
+  }
+  return mechanism ? "app app--mechanism" : "app";
 }
 
 function leftName(structureId: string): string {
@@ -44,7 +53,11 @@ export function App() {
   const [honestyOpen, setHonestyOpen] = useState(false);
   const [tour, setTour] = useState<TourRun | null>(null);
   const [stage, setStage] = useState<Stage | null>(null);
+  const [chainPlaying, setChainPlaying] = useState(false);
+  const [chainSpeed, setChainSpeed] = useState<Speed>(1);
   const pair = view.compare === "" ? undefined : comparison(view.compare);
+  const run = useMechanism();
+  const inMechanism = view.mode === "mechanism" && run !== null && pair === undefined;
   const [compareLayout, setCompareLayout] = useState<"side-by-side" | "superposed">("side-by-side");
   const stageRef = useRef<Stage | null>(null);
   const locate = useCallback(
@@ -87,12 +100,24 @@ export function App() {
 
   const trajectory = useTrajectory(structure);
 
+  /**
+   * The residues Mechanism mode is talking about, so everything else can be
+   * faded. Memoised by identity because StageView repaints the whole molecule
+   * whenever this changes.
+   */
+  const emphasis = useMemo(() => {
+    if (!inMechanism || structure === null) return null;
+    const panel = run!.panel;
+    if (panel.kind !== "structure" || structure.id !== panel.structure) return null;
+    return resolveResidues(structure, [panel.focus, ...(panel.emphasise ?? [])]);
+  }, [inMechanism, run?.panel, structure]);
+
   return (
-    <div className={appClass(pair !== undefined, compareLayout)}>
+    <div className={appClass(pair !== undefined, compareLayout, inMechanism)}>
       <header className="masthead">
         <div className="brand">
           <h1>Foldwise</h1>
-          <p>Watch real proteins fold — and see why it matters clinically</p>
+          <p>From a change in the gene to what the patient feels</p>
         </div>
         <ModeTabs />
         <button
@@ -108,8 +133,13 @@ export function App() {
       </header>
 
       <aside className="rail rail--left">
+        {/* In Mechanism mode the controls come first: they are what the reader
+            is here to change, and the library is how they switch topic. */}
+        {inMechanism ? (
+          <Controls mechanism={run!.mechanism} vars={run!.vars} onSet={run!.setVar} />
+        ) : null}
         {pair === undefined ? <Library /> : null}
-        {pair === undefined ? (
+        {pair === undefined && !inMechanism ? (
         <StoryPanel
           structureId={view.structure}
           level={level}
@@ -137,10 +167,12 @@ export function App() {
         />
         ) : null}
         {pair === undefined ? (
+          inMechanism ? null : (
           <>
             <FirstLook structureId={view.structure} />
             <NotationKey />
           </>
+          )
         ) : (
           <Compare
             pair={pair}
@@ -154,7 +186,30 @@ export function App() {
       </aside>
 
       <main className="centre">
-        <StageView structure={structure} trajectory={trajectory} onHover={setHovered} onReady={onStageReady} />
+        <StageView
+          structure={structure}
+          trajectory={trajectory}
+          onHover={setHovered}
+          onReady={onStageReady}
+          emphasis={emphasis}
+        />
+
+        {inMechanism ? (
+          <>
+            <ChainStepper
+              mechanism={run!.mechanism}
+              current={run!.stageIndex}
+              vars={run!.vars}
+              onGo={run!.goTo}
+            />
+            <StagePanel
+              outcome={run!.outcome}
+              panel={run!.panel}
+              structure={structure}
+              renderer={stage}
+            />
+          </>
+        ) : null}
 
         <div className="overlay overlay--top">
           {structure !== null ? (
@@ -166,7 +221,7 @@ export function App() {
           ) : null}
         </div>
 
-        <div className="overlay overlay--right">
+        <div className="overlay overlay--right" hidden={inMechanism}>
           <label>
             <span className="sr-only">Representation</span>
             <select
@@ -198,7 +253,16 @@ export function App() {
       </main>
 
       <aside className="rail rail--right">
-        {structure !== null ? (
+        {inMechanism ? (
+          <Outcome
+            stage={run!.stage}
+            outcome={run!.outcome}
+            level={level}
+            onLevel={setLevel}
+            stepOf={`${run!.stageIndex + 1} of ${run!.mechanism.stages.length}`}
+          />
+        ) : null}
+        {structure !== null && !inMechanism ? (
           <>
             <Readouts
               structure={structure}
@@ -244,7 +308,25 @@ export function App() {
       <HonestySheet open={honestyOpen} onClose={() => setHonestyOpen(false)} />
 
       <footer className="foot">
-        <Transport trajectory={trajectory} speed={speed} onSpeed={setSpeed} />
+        {inMechanism ? (
+          <Playback
+            playing={chainPlaying}
+            speed={chainSpeed}
+            atStart={run!.atStart}
+            atEnd={run!.atEnd}
+            onPlay={(next) => {
+              // "Play from the top" — restarting is more useful than a button
+              // that does nothing once the chain has finished.
+              if (next && run!.atEnd) run!.goTo(0);
+              setChainPlaying(next);
+            }}
+            onSpeed={setChainSpeed}
+            onNext={run!.next}
+            onPrevious={run!.previous}
+          />
+        ) : (
+          <Transport trajectory={trajectory} speed={speed} onSpeed={setSpeed} />
+        )}
       </footer>
     </div>
   );

@@ -8,7 +8,7 @@
 
 import { useEffect, useRef } from "react";
 
-import { Stage, colorResidues } from "@foldwise/render";
+import { Stage, colorResidues, emphasise } from "@foldwise/render";
 import { chainIndices, flatten, globalIndex, type Structure } from "@foldwise/ui";
 
 import type { Hit } from "./Readouts.js";
@@ -22,6 +22,14 @@ interface StageViewProps {
   readonly onHover: (hit: Hit | null) => void;
   /** Handed the Stage once it exists, so a tour can locate residues in 3D. */
   readonly onReady?: (stage: Stage | null) => void;
+  /**
+   * Residues to keep at full colour, fading everything else.
+   *
+   * Mechanism mode flies the camera to one residue, and at that zoom a
+   * full-colour molecule is a wall of ribbon with no way to tell which strand
+   * is the subject. Dimming the rest is what makes the answer visible.
+   */
+  readonly emphasis?: readonly { readonly chain: number; readonly residue: number }[] | null;
 }
 
 /** The panel colour the canvas sits on, so the two agree in either theme. */
@@ -30,7 +38,9 @@ function readPanelColour(element: HTMLElement): string {
   return value.length > 0 ? value : "#ffffff";
 }
 
-export function StageView({ structure, trajectory, onHover, onReady }: StageViewProps) {
+export function StageView({
+  structure, trajectory, onHover, onReady, emphasis = null,
+}: StageViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<Stage | null>(null);
 
@@ -82,17 +92,22 @@ export function StageView({ structure, trajectory, onHover, onReady }: StageView
     if (stage === null || structure === null) return;
     const chainOf = chainIndices(structure);
     let offset = 0;
-    stage.setColors(structure.chains.map((chain) => {
+    stage.setColors(structure.chains.map((chain, index) => {
       const slice = chainOf.subarray(offset, offset + chain.seq.length);
       offset += chain.seq.length;
-      return colorResidues(color, {
+      const colours = colorResidues(color, {
         sequence: chain.seq,
         secondaryStructure: chain.ss,
         bFactors: chain.bf,
         chainOf: slice,
       });
+      if (emphasis === null) return colours;
+      const keep = emphasis.filter((r) => r.chain === index).map((r) => r.residue);
+      return emphasise(colours, keep);
     }));
-  }, [structure, color, trajectory.status]);
+    // `emphasis` is compared by identity, so callers must memoise it; a fresh
+    // array every render would repaint the whole molecule on every keystroke.
+  }, [structure, color, trajectory.status, emphasis]);
 
   const dragging = useRef(false);
 

@@ -1,0 +1,401 @@
+/*
+ * Mechanism mode.
+ *
+ * The chain runs across the top of the stage, so the reader can always see
+ * where they are between the gene and the patient. The stage below it is
+ * either the real molecule or a drawing, and the two are visually distinct on
+ * purpose: a reader who cannot tell a measurement from an illustration learns
+ * to trust the wrong things.
+ *
+ * Tone is carried by colour and by a bar, never by colour alone — around one
+ * man in twelve could not use it otherwise.
+ */
+
+/* ── The causal chain ───────────────────────────────────────────────────── */
+
+.chain {
+  position: absolute;
+  z-index: 3;
+  inset: 10px 10px auto;
+}
+.chain ol {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.chain__step {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+  padding: 7px 9px 8px;
+  text-align: left;
+  border-radius: 8px;
+  border-top: 2px solid transparent;
+  transition: background 150ms, border-color 150ms;
+}
+.chain__step:hover { background: var(--panel-soft); }
+.chain__step[aria-current="step"] { background: var(--panel-soft); }
+
+/* The tone bar. Present for everyone; the colour is the second channel. */
+.chain__step--harm { border-top-color: var(--accent); }
+.chain__step--safe { border-top-color: var(--good); }
+.chain__step--neutral { border-top-color: var(--line-strong); }
+
+.chain__scale {
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  min-height: 1em;
+}
+.chain__title {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--ink-soft);
+}
+.chain__step[aria-current="step"] .chain__title { color: var(--ink); }
+.chain__outcome {
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--ink-faint);
+  /* Two lines, then clipped: the full text is in the outcome panel. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.chain__step--harm[aria-current="step"] .chain__outcome { color: var(--accent); }
+.chain__step--safe[aria-current="step"] .chain__outcome { color: var(--good); }
+
+/* ── The stage panel ────────────────────────────────────────────────────── */
+
+.stage-panel {
+  position: absolute;
+  z-index: 2;
+  inset: auto 10px 10px;
+  pointer-events: none;
+}
+
+.stage-panel__provenance {
+  margin: 0;
+  align-self: flex-start;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow);
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+.stage-panel--structure { display: flex; }
+
+/* A drawing covers the canvas entirely — the molecule is not the subject here. */
+.stage-panel--schematic {
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 96px 24px 20px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.stage-panel--schematic .stage-panel__provenance { align-self: center; }
+
+/* ── The residue marker ─────────────────────────────────────────────────── */
+
+.residue-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* The transform positions the marker's own origin, so shift it back onto
+     the residue rather than hanging off its bottom-right corner. */
+  margin: -13px 0 0 -13px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 200ms;
+}
+
+.residue-marker__ring {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--panel) 70%, transparent);
+}
+
+.residue-marker__name {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow);
+  font-size: 12.5px;
+  font-weight: 640;
+  white-space: nowrap;
+}
+.residue-marker__chain {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--ink-faint);
+  letter-spacing: 0.03em;
+}
+
+/* ── The drawings ───────────────────────────────────────────────────────── */
+
+.schematic {
+  width: 100%;
+  max-width: 560px;
+  flex: 1;
+  min-height: 0;
+}
+
+.schematic__label { font-size: 10px; letter-spacing: 0.04em; fill: var(--ink-faint); }
+.schematic__label--ink { fill: var(--ink); }
+.schematic__label--harm { fill: var(--accent); font-weight: 600; }
+.schematic__label--good { fill: var(--good); font-weight: 600; }
+
+/* Every moving part animates the same way, and not at all if asked not to. */
+.schematic * { transition: transform 520ms cubic-bezier(0.4, 0, 0.2, 1), opacity 320ms, fill 320ms, d 420ms; }
+.schematic__unit, .schematic__drug { transform-box: fill-box; transform-origin: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .schematic * { transition: none; }
+}
+
+/* Codon */
+.schematic__base { fill: var(--panel-soft); stroke: var(--line-strong); }
+.schematic__base--changed { fill: var(--accent-soft); stroke: var(--accent); }
+.schematic__base-letter { font-family: var(--mono); font-size: 26px; font-weight: 600; fill: var(--ink); }
+.schematic__base-letter--changed { fill: var(--accent); }
+.schematic__arrow { stroke: var(--ink-faint); stroke-width: 1.5; fill: none; }
+.schematic__arrowhead { fill: var(--ink-faint); }
+.schematic__pill { fill: var(--panel-soft); stroke: var(--line-strong); }
+.schematic__pill--harm { fill: var(--accent-soft); stroke: var(--accent); }
+.schematic__pill--good { fill: var(--panel-soft); stroke: var(--good); }
+.schematic__pill-text { font-size: 14px; font-weight: 600; fill: var(--ink); }
+
+/* Fibre */
+.schematic__body { stroke-width: 1.4; }
+.schematic__body--free { fill: var(--panel-soft); stroke: var(--line-strong); }
+.schematic__body--docked { fill: var(--accent-soft); stroke: var(--accent); }
+.schematic__body--fetal { fill: var(--panel-soft); stroke: var(--good); stroke-dasharray: 3 2; }
+.schematic__knob--free { fill: var(--ink-faint); }
+.schematic__knob--docked { fill: var(--accent); }
+/* The acceptor pocket, cut into the left edge — a socket, not a bite. */
+.schematic__notch { fill: var(--bg); opacity: 0.55; }
+.schematic__unit-text { font-size: 12px; font-weight: 700; fill: var(--good); }
+.schematic__fibre-spine { stroke: var(--accent); stroke-width: 8; stroke-linecap: round; opacity: 0.22; }
+.schematic__fibre-spine--stopped { stroke: var(--good); }
+
+/* Red cell */
+.schematic__cell { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.6; }
+.schematic__dimple { fill: none; stroke: var(--accent); stroke-width: 1; opacity: 0.5; }
+.schematic__rods path { stroke: var(--accent); stroke-width: 3; stroke-linecap: round; opacity: 0.7; }
+
+/* Vessel */
+.schematic__lumen { fill: var(--panel-soft); stroke: var(--line-strong); }
+.schematic__flow-cell { fill: var(--good); opacity: 0.75; }
+.schematic__jam path { fill: var(--accent); opacity: 0.85; }
+.schematic__ischaemia { fill: var(--ink); opacity: 0.12; }
+
+/* Trafficking, channel, airway */
+.schematic__membrane { fill: var(--ink-faint); opacity: 0.35; }
+.schematic__organelle { fill: var(--panel-soft); stroke: var(--line-strong); }
+.schematic__organelle--harm { stroke: var(--accent); stroke-dasharray: 4 3; }
+.schematic__route { fill: none; stroke: var(--line-strong); stroke-width: 2; stroke-dasharray: 4 4; }
+.schematic__route--live { stroke: var(--good); stroke-dasharray: none; stroke-width: 3; }
+.schematic__route--harm.schematic__route--live { stroke: var(--accent); }
+.schematic__cargo--good { fill: var(--good); }
+.schematic__cargo--harm { fill: var(--accent); }
+
+.schematic__fluid { fill: var(--good); opacity: 0.28; }
+.schematic__fluid--thin { fill: var(--accent); opacity: 0.3; }
+.schematic__channel { stroke-width: 1.6; }
+.schematic__channel--open { fill: var(--panel-soft); stroke: var(--good); }
+.schematic__channel--shut { fill: var(--panel-soft); stroke: var(--accent); stroke-dasharray: 3 2; }
+.schematic__ion { fill: var(--good); }
+.schematic__blocked { stroke: var(--accent); stroke-width: 3; stroke-linecap: round; }
+
+.schematic__airway { fill: var(--panel-soft); stroke: var(--line-strong); }
+.schematic__mucus { fill: var(--good); opacity: 0.3; }
+.schematic__mucus--thick { fill: var(--accent); opacity: 0.28; }
+.schematic__mucus--thickest { fill: var(--accent); opacity: 0.45; }
+.schematic__cilia path { stroke: var(--ink-soft); stroke-width: 2; stroke-linecap: round; }
+.schematic__cilia--stuck path { stroke: var(--ink-faint); }
+.schematic__bugs circle { fill: var(--accent); opacity: 0.6; }
+
+/* Lock, signal, polyprotein, course */
+.schematic__protein { fill: var(--panel-soft); stroke: var(--line-strong); }
+.schematic__pocket { fill: var(--panel); stroke: var(--line-strong); stroke-dasharray: 3 3; }
+.schematic__gatekeeper { fill: var(--ink-faint); opacity: 0.5; }
+.schematic__gatekeeper--bulky { fill: var(--accent); opacity: 0.65; }
+.schematic__drug-body { fill: var(--good); opacity: 0.8; }
+.schematic__drug--rejected .schematic__drug-body { fill: var(--accent); opacity: 0.7; }
+.schematic__bond { stroke: var(--good); stroke-width: 2; stroke-dasharray: 2 2; }
+
+.schematic__kinase { fill: var(--panel-soft); stroke: var(--line-strong); }
+.schematic__kinase--active { fill: var(--accent-soft); stroke: var(--accent); }
+.schematic__signal-arrow { stroke: var(--line-strong); stroke-width: 2; fill: none; }
+.schematic__signal-arrow--live { stroke: var(--accent); }
+.schematic__phosphate { fill: var(--accent); }
+.schematic__nucleus { fill: var(--panel-soft); stroke: var(--line-strong); }
+.schematic__nucleus--driven { fill: var(--accent-soft); stroke: var(--accent); }
+
+.schematic__segment { fill: var(--panel-soft); stroke: var(--line-strong); }
+.schematic__segment--released { fill: var(--accent-soft); stroke: var(--accent); }
+.schematic__scissor { stroke: var(--line-strong); stroke-width: 2; stroke-dasharray: 3 3; }
+.schematic__scissor--cut { stroke: var(--accent); stroke-dasharray: none; }
+.schematic__machines rect { fill: var(--accent-soft); stroke: var(--accent); }
+
+.schematic__axis { stroke: var(--line-strong); stroke-width: 1.4; fill: none; }
+.schematic__course { fill: none; stroke-width: 3; stroke-linecap: round; }
+.schematic__course--good { stroke: var(--good); }
+.schematic__course--harm { stroke: var(--accent); }
+.schematic__course-end--good { fill: var(--good); }
+.schematic__course-end--harm { fill: var(--accent); }
+
+/* ── Controls ───────────────────────────────────────────────────────────── */
+
+.controls__lede { margin: 0 0 12px; font-size: 12.5px; color: var(--ink-soft); }
+
+.controls__group { border: 0; margin: 0 0 12px; padding: 0; }
+.controls__group legend {
+  padding: 0 0 6px;
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  font-weight: 600;
+}
+.controls__option {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  column-gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 140ms;
+}
+.controls__option:hover { background: var(--panel-soft); }
+.controls__option:has(input:checked) { background: var(--accent-soft); }
+.controls__option input { margin: 0; accent-color: var(--accent); }
+.controls__label { font-weight: 580; }
+.controls__option:has(input:checked) .controls__label { color: var(--accent); }
+.controls__note { grid-column: 2; font-size: 11px; color: var(--ink-faint); }
+
+.controls__caveat {
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--ink-faint);
+}
+
+/* ── The outcome ────────────────────────────────────────────────────────── */
+
+.outcome { border-left: 3px solid var(--line-strong); }
+.outcome--harm { border-left-color: var(--accent); }
+.outcome--safe { border-left-color: var(--good); }
+
+.outcome__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 10px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  font-weight: 600;
+}
+.outcome__count { font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
+
+.outcome__title {
+  margin: 8px 0 6px;
+  font-size: 15px;
+  font-weight: 620;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.outcome__headline {
+  margin: 0 0 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.outcome--harm .outcome__headline { color: var(--accent); }
+.outcome--safe .outcome__headline { color: var(--good); }
+
+.outcome__detail { margin: 0 0 14px; font-size: 13px; line-height: 1.55; color: var(--ink-soft); }
+
+.outcome__levels { display: flex; gap: 3px; }
+.outcome__levels button {
+  flex: 1;
+  padding: 5px 8px;
+  border-radius: 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  background: var(--panel-soft);
+  transition: background 140ms, color 140ms;
+}
+.outcome__levels button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+
+/* ── Playback ───────────────────────────────────────────────────────────── */
+
+.playback {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.playback__step, .playback__play {
+  padding: 7px 16px;
+  border-radius: 999px;
+  font-weight: 600;
+  background: var(--panel-soft);
+  transition: background 140ms, opacity 140ms;
+}
+.playback__step:hover:not(:disabled), .playback__play:hover { background: var(--line); }
+.playback__step:disabled { opacity: 0.35; cursor: default; }
+.playback__play { background: var(--accent-soft); color: var(--accent); min-width: 148px; }
+
+.playback__speed { display: flex; gap: 3px; margin-left: auto; }
+.playback__speed button {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+  transition: background 140ms, color 140ms;
+}
+.playback__speed button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }

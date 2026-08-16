@@ -4,7 +4,8 @@ import {
   areaPath, donutArc, extentOf, runsOf, sparklinePath, ticks,
 } from "../src/charts.js";
 import {
-  DEFAULT_VIEW, MODE_PRESETS, applyPreset, decodeView, encodeView, presetFor,
+  DEFAULT_VIEW, MODE_PRESETS, applyPreset, decodeVars, decodeView, encodeVars, encodeView,
+  presetFor,
 } from "../src/urlState.js";
 import { chainIndices, coverage, flatten, globalIndex, parseStructure, residueCount, unobservedResidues } from "../src/structure.js";
 
@@ -19,7 +20,7 @@ describe("view state in the URL", () => {
     const view = {
       structure: "abl-imatinib", progress: 0.625, mode: "chemistry",
       representation: "surface", color: "hydropathy", selected: 315,
-      compare: "abl-t315i", playing: true,
+      compare: "abl-t315i", playing: true, stage: 0, vars: "",
     } as const;
     expect(decodeView(encodeView(view))).toEqual(view);
   });
@@ -111,7 +112,53 @@ describe("mode presets", () => {
 
   it("falls back to the first preset for an unknown mode", () => {
     // @ts-expect-error deliberately invalid
-    expect(presetFor("sideways").key).toBe("fold");
+    expect(presetFor("sideways").key).toBe("mechanism");
+  });
+
+  it("opens on Mechanism", () => {
+    // The reader arrives with a clinical question, not a rendering question.
+    expect(DEFAULT_VIEW.mode).toBe("mechanism");
+    expect(MODE_PRESETS[0]!.key).toBe("mechanism");
+  });
+
+  it("drops the mechanism stage when leaving mechanism mode", () => {
+    const deep = { ...DEFAULT_VIEW, stage: 4 };
+    expect(applyPreset(deep, "fold").stage).toBe(0);
+    expect(applyPreset(deep, "mechanism").stage).toBe(4);
+  });
+});
+
+describe("mechanism control settings in the URL", () => {
+  it("round-trips a setting", () => {
+    const vars = { genotype: "hbs", oxygen: "low" };
+    expect(decodeVars(encodeVars(vars))).toEqual(vars);
+  });
+
+  it("stays short enough to paste into a message", () => {
+    expect(encodeVars({ genotype: "hbs", oxygen: "low" })).toBe("genotype:hbs,oxygen:low");
+  });
+
+  it("orders keys so the same setting always makes the same link", () => {
+    // Two readers who set the same controls in a different order should be
+    // able to compare that they are looking at the same thing.
+    expect(encodeVars({ oxygen: "low", genotype: "hbs" }))
+      .toBe(encodeVars({ genotype: "hbs", oxygen: "low" }));
+  });
+
+  it("drops anything that is not an authored identifier", () => {
+    // This value comes out of a URL, and ends up as an object key.
+    expect(decodeVars("genotype:hbs,__proto__:x,a:<script>,broken")).toEqual({ genotype: "hbs" });
+    expect(encodeVars({ "__proto__": "x", genotype: "hbs" })).toBe("genotype:hbs");
+  });
+
+  it("survives an empty or truncated setting", () => {
+    expect(decodeVars("")).toEqual({});
+    expect(decodeVars("genotype:")).toEqual({});
+  });
+
+  it("carries the mechanism stage and settings through a link", () => {
+    const view = { ...DEFAULT_VIEW, stage: 3, vars: "genotype:hbs,oxygen:low" };
+    expect(decodeView(encodeView(view))).toEqual(view);
   });
 });
 

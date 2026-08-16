@@ -26,7 +26,7 @@ export {
 } from "./palette.js";
 export type { Deficiency, Rgb } from "./palette.js";
 
-export { COLOR_MODES, colorMode, colorResidues, colorVertices } from "./colorModes.js";
+export { COLOR_MODES, colorMode, colorResidues, colorVertices, emphasise } from "./colorModes.js";
 export type { ColorInput, ColorMode, ColorModeKey, ResidueContext } from "./colorModes.js";
 
 export { boundingSphere, damp, fitDistance, needsReframe } from "./camera.js";

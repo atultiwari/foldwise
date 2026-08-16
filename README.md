@@ -13,11 +13,12 @@ on screen. Everything that is a model rather than a measurement is labelled as o
 
 ## Status
 
-**Phases 0–6a complete.** The application runs, teaches, and now shows a reader
-how to read it: four clinical stories with guided tours, an explain layer for the
-notation, and a comparison view that is honest about how little separates a wild
-type from the variant that causes disease. Phase 7 is export, offline and
-accessibility.
+**Phases 0–6b complete.** The application opens in **Mechanism** mode: the causal
+chain from gene to patient for each of the four clinical stories, with the causes
+as controls the reader sets. Choose HbS at low oxygen and a fibre forms; raise the
+oxygen and it does not — which is the point. Structure stages fly the camera to
+the residue and name it; the scales with no coordinates to show are drawn, and
+labelled as drawings. Phase 7 is export, offline and accessibility.
 
 | Phase | Scope | State |
 |---|---|---|
@@ -29,6 +30,7 @@ accessibility.
 | 5 · UI shell | React panels, SVG charts, URL state | ✅ **Done** — every view is a shareable link |
 | 6 · Editorial layer | Clinical stories, annotations, citations, honesty panel | ✅ **Done** — 44 tests; residue claims checked against the structures |
 | 6a · Guidance & comparison | Explain layer, guided tours, compare mode | ✅ **Done** — explain layer, orientation tour, 4 story tours, compare mode; [plan](docs/PHASE-6A-PLAN.md) |
+| 6b · Mechanism mode | Causal chains, control-driven outcomes, schematics | ✅ **Done** — 4 mechanisms, 11 schematics, 108 tests; [design](docs/MECHANISM-MODE.md) |
 | 7 · Ship | Export, PWA, accessibility | ⬜ Pending |
 
 Phase gates and the full plan live in the parent workspace, outside this repo:
@@ -39,7 +41,7 @@ Phase gates and the full plan live in the parent workspace, outside this repo:
 ```bash
 pnpm dev        # the application                         -> localhost:5274
 pnpm data       # rebuild all 9 structures from RCSB     -> 9 built, 0 failed
-pnpm test       # core, fold, render, ui, content         -> 360 passed
+pnpm test       # core, fold, render, ui, content, web      -> 479 passed
 pnpm dev:render # renderer-only visual harness            -> localhost:5273
 pnpm coverage   #                                        -> 99% statements
 pnpm typecheck
@@ -55,6 +57,8 @@ cd pipeline && uv run python -m foldwise.cli reference
 ### What does not exist yet
 
 - No assessment, no Anki export, no figure export.
+- Mechanism outcomes are authored biology selected by the controls, not a
+  simulation; the controls are switches where a patient is a spectrum.
 - Comparison is limited to four curated pairs; arbitrary pairing needs an
   alignment story for unrelated proteins.
 - No offline mode, and no accessibility audit yet.

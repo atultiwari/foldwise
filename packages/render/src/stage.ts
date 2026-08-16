@@ -98,6 +98,17 @@ export class Stage {
   private readonly target = new Vector3();
   /** Centre of the comparison structure, framed independently side by side. */
   private readonly targetB = new Vector3();
+
+  /**
+   * A residue neighbourhood the camera is holding, or null for whole-molecule
+   * framing.
+   *
+   * Ringing a residue at whole-molecule zoom shows nothing: a single residue is
+   * a few pixels across on a 574-residue tetramer, so "this is position β6"
+   * was pointing at something the reader could not see. Teaching a residue
+   * means flying to it.
+   */
+  private focus: { readonly centre: Vector3; readonly radius: number } | null = null;
   private distance = 60;
   private desiredDistance = 60;
   private frameHandle = 0;
@@ -470,6 +481,21 @@ export class Stage {
 
   /** Fit the camera to everything currently loaded. */
   frameAll(): void {
+    // A held focus wins over automatic framing, or every conformation change
+    // would yank the camera back out to the whole molecule.
+    if (this.focus !== null) {
+      this.target.copy(this.focus.centre);
+      this.targetB.copy(this.focus.centre);
+      const width = this.container.clientWidth;
+      const height = Math.max(1, this.container.clientHeight);
+      this.desiredDistance = fitDistance(
+        this.focus.radius,
+        this.camera.fov,
+        Math.max(0.1, width / height),
+      );
+      return;
+    }
+
     const main = this.boundsOf(this.chains);
     if (main === null) return;
     this.target.set(main.centre[0], main.centre[1], main.centre[2]);
@@ -517,6 +543,40 @@ export class Stage {
       offset += chain.geometry.positions.length;
     }
     return boundingSphere(all);
+  }
+
+  /**
+   * Frame the camera on one residue and its surroundings.
+   *
+   * `radius` is how much context to keep in view, in ångström. Around 16 shows
+   * a residue and its immediate neighbours; 30 shows a whole loop or the mouth
+   * of a pocket.
+   */
+  focusOn(chainIndex: number, residueIndex: number, radius = 16): void {
+    const chain = this.chains[chainIndex];
+    if (chain === undefined) return;
+    const residues = chain.secondaryStructure.length;
+    if (residueIndex < 0 || residueIndex >= residues) return;
+
+    this.focus = {
+      centre: new Vector3(
+        chain.ca[residueIndex * 3]!,
+        chain.ca[residueIndex * 3 + 1]!,
+        chain.ca[residueIndex * 3 + 2]!,
+      ),
+      radius,
+    };
+    this.frameAll();
+  }
+
+  /** Return to framing the whole molecule. */
+  clearFocus(): void {
+    this.focus = null;
+    this.frameAll();
+  }
+
+  get isFocused(): boolean {
+    return this.focus !== null;
   }
 
   orbit(deltaX: number, deltaY: number): void {

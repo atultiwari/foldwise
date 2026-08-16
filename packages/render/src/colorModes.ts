@@ -178,3 +178,30 @@ function normalise(values: ArrayLike<number>): Float64Array {
   for (let i = 0; i < values.length; i++) out[i] = (values[i]! - min) / range;
   return out;
 }
+
+/**
+ * Fade everything except a handful of residues.
+ *
+ * Focus without context is disorienting — a reader zoomed onto one residue has
+ * no idea where they are in the protein. Dimming rather than hiding keeps the
+ * surroundings legible while making the subject unmistakable.
+ */
+export function emphasise(
+  residueColors: ArrayLike<number>,
+  keep: Iterable<number>,
+  dim = 0.16,
+): Float32Array {
+  const kept = new Set(keep);
+  const out = Float32Array.from(residueColors as ArrayLike<number>);
+  const residues = out.length / 3;
+
+  for (let i = 0; i < residues; i++) {
+    if (kept.has(i)) continue;
+    // Toward a mid grey rather than toward black, so the shape still reads.
+    for (let axis = 0; axis < 3; axis++) {
+      const k = i * 3 + axis;
+      out[k] = 0.55 + (out[k]! - 0.55) * dim;
+    }
+  }
+  return out;
+}

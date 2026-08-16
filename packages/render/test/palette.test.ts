@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { COLOR_MODES, colorMode, colorResidues, colorVertices } from "../src/colorModes.js";
+import { COLOR_MODES, colorMode, colorResidues, colorVertices, emphasise } from "../src/colorModes.js";
 import {
   CHAIN_COLOURS, STRUCTURE_COLOURS,
   hexToRgb, luminance, perceptualDistance, rampAt, rgbToHex, simulate,
@@ -198,5 +198,29 @@ describe("colorVertices", () => {
     const residueColors = new Float32Array([1, 0, 0, 0, 1, 0]);
     const residueOf = new Uint32Array([0, 0, 1]);
     expect(Array.from(colorVertices(residueColors, residueOf))).toEqual([1, 0, 0, 1, 0, 0, 0, 1, 0]);
+  });
+});
+
+describe("emphasise", () => {
+  it("leaves the kept residues untouched", () => {
+    const colours = new Float32Array([1, 0, 0, 0, 1, 0]);
+    const out = emphasise(colours, [0]);
+    expect(Array.from(out.slice(0, 3))).toEqual([1, 0, 0]);
+  });
+
+  it("fades the rest toward grey rather than to black", () => {
+    // Dimming to black loses the silhouette, and a reader zoomed onto one
+    // residue then has no idea where they are in the protein.
+    const out = emphasise(new Float32Array([1, 0, 0, 0, 0, 0]), [0]);
+    for (let axis = 3; axis < 6; axis++) {
+      expect(out[axis]!).toBeGreaterThan(0.3);
+      expect(out[axis]!).toBeLessThan(0.7);
+    }
+  });
+
+  it("does not mutate its input", () => {
+    const colours = new Float32Array([1, 0, 0, 0, 1, 0]);
+    emphasise(colours, [0]);
+    expect(Array.from(colours)).toEqual([1, 0, 0, 0, 1, 0]);
   });
 });

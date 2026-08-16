@@ -26,3 +26,10 @@ export { STORY_TOURS, storyTour } from "./storyTours.js";
 
 export { COMPARISONS, comparison, comparisonForStory } from "./comparisons.js";
 export type { ComparisonPair } from "./comparisons.js";
+
+export { SCALES, SCALE_LABELS, initialState, outcomeFor, panelFor } from "./mechanism.js";
+export type {
+  ControlOption, Mechanism, MechanismControl, MechanismStage, Outcome, Panel, Scale,
+  SchematicPanel, StructurePanel,
+} from "./mechanism.js";
+export { MECHANISMS, mechanism } from "./mechanisms.js";
