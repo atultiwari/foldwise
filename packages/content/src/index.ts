@@ -18,3 +18,6 @@ export { HONESTY } from "./honesty.js";
 
 export { EXPLAINERS, FIRST_LOOK, NOTATION, explainer, firstLook } from "./guidance.js";
 export type { Explainer, FirstLookItem, NotationEntry } from "./guidance.js";
+
+export { ORIENTATION, ORIENTATION_VERSION } from "./tour.js";
+export type { TourStep } from "./tour.js";

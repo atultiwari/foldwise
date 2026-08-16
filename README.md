@@ -31,7 +31,7 @@ clinical readers were never taught. See
 | 4 · Renderer | Cartoon, atoms, sticks, surface, colour modes, picking | ✅ **Done** — 81 tests, all four representations verified visually |
 | 5 · UI shell | React panels, SVG charts, URL state | ✅ **Done** — every view is a shareable link |
 | 6 · Editorial layer | Clinical stories, annotations, citations, honesty panel | ✅ **Done** — 44 tests; residue claims checked against the structures |
-| 6a · Guidance & comparison | Explain layer, guided tours, compare mode | 🟡 **In progress** — 6a.1 explain layer done; [plan](docs/PHASE-6A-PLAN.md) |
+| 6a · Guidance & comparison | Explain layer, guided tours, compare mode | 🟡 **In progress** — 6a.1 explain layer + 6a.2 orientation tour done; [plan](docs/PHASE-6A-PLAN.md) |
 | 7 · Ship | Export, PWA, accessibility | ⬜ Pending |
 
 Phase gates and the full plan live in the parent workspace, outside this repo:
@@ -42,7 +42,7 @@ Phase gates and the full plan live in the parent workspace, outside this repo:
 ```bash
 pnpm dev        # the application                         -> localhost:5274
 pnpm data       # rebuild all 9 structures from RCSB     -> 9 built, 0 failed
-pnpm test       # core, fold, render, ui, content         -> 305 passed
+pnpm test       # core, fold, render, ui, content         -> 312 passed
 pnpm dev:render # renderer-only visual harness            -> localhost:5273
 pnpm coverage   #                                        -> 99% statements
 pnpm typecheck
@@ -57,8 +57,8 @@ cd pipeline && uv run python -m foldwise.cli reference
 
 ### What does not exist yet
 
-- No guided tours yet (6a.2, 6a.3). The notation and the read-outs are now
-  explained, but nothing walks a reader through a story.
+- No story tours yet (6a.3). The orientation tour covers where things are;
+  nothing yet walks a reader through the science of a clinical story.
 - No comparison view, so seeing what differs between wild type and variant
   means loading one, memorising it, and loading the other.
 - No assessment, no Anki export, no figure export.

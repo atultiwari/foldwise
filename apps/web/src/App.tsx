@@ -9,6 +9,7 @@ import { FirstLook, NotationKey } from "./components/Explain.js";
 import { HonestySheet } from "./components/HonestySheet.js";
 import { Library } from "./components/Library.js";
 import { StoryPanel } from "./components/StoryPanel.js";
+import { Tour, shouldAutoStart } from "./components/Tour.js";
 import { ModeTabs } from "./components/ModeTabs.js";
 import { Readouts } from "./components/Readouts.js";
 import { StageView } from "./components/StageView.js";
@@ -26,8 +27,17 @@ export function App() {
   const [speed, setSpeed] = useState(1);
   const [level, setLevel] = useState<Level>("student");
   const [honestyOpen, setHonestyOpen] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
 
   useEffect(() => listenToHistory(), []);
+
+  // Offer the tour on a first visit, once the shell has painted so its
+  // anchors can be measured.
+  useEffect(() => {
+    if (!shouldAutoStart()) return;
+    const timer = setTimeout(() => setTourOpen(true), 700);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -58,6 +68,9 @@ export function App() {
           <p>Watch real proteins fold — and see why it matters clinically</p>
         </div>
         <ModeTabs />
+        <button type="button" className="masthead__link" onClick={() => setTourOpen(true)}>
+          Show me around
+        </button>
         <button type="button" className="honesty-link" onClick={() => setHonestyOpen(true)}>
           What&apos;s real here?
         </button>
@@ -144,6 +157,7 @@ export function App() {
         ) : null}
       </aside>
 
+      <Tour open={tourOpen} level={level} onClose={() => setTourOpen(false)} />
       <HonestySheet open={honestyOpen} onClose={() => setHonestyOpen(false)} />
 
       <footer className="foot">

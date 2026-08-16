@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { CITATIONS, citation, citationHref, formatCitation } from "../src/citations.js";
 import { EXPLAINERS, NOTATION, firstLook } from "../src/guidance.js";
 import { HONESTY } from "../src/honesty.js";
+import { ORIENTATION } from "../src/tour.js";
 import {
   citationSchema, honestySchema, LEVELS, storySchema, structureContentSchema,
 } from "../src/schema.js";
@@ -266,6 +267,54 @@ describe("the explain layer", () => {
         expect(index, `${entry.id} residue ${item.residue.resNum}`).toBeGreaterThanOrEqual(0);
         expect(chain!.seq[index], `${entry.id} ${item.residue.resNum}`).toBe(item.residue.code);
       }
+    }
+  });
+});
+
+describe("the orientation tour", () => {
+  it("stays short enough to finish", () => {
+    // A tour longer than this is a tour people abandon halfway, which is
+    // worse than no tour: they leave believing they have seen it.
+    expect(ORIENTATION.length).toBeLessThanOrEqual(6);
+    expect(ORIENTATION.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("has unique step ids", () => {
+    expect(new Set(ORIENTATION.map((s) => s.id)).size).toBe(ORIENTATION.length);
+  });
+
+  it("anchors every step to a class selector in the app shell", () => {
+    for (const step of ORIENTATION) {
+      expect(step.anchor, step.id).toMatch(/^\.[a-z][\w-]*$/);
+    }
+  });
+
+  it("writes every step at all three reading levels", () => {
+    for (const step of ORIENTATION) {
+      for (const level of LEVELS) {
+        expect(step.copy[level].length, `${step.id} · ${level}`).toBeGreaterThan(40);
+      }
+      expect(step.title.length, step.id).toBeGreaterThan(10);
+    }
+  });
+
+  it("keeps the copy short enough to read standing up", () => {
+    // This is an on-ramp, not the teaching. Anything longer belongs in a
+    // story tour the reader chose to start.
+    for (const step of ORIENTATION) {
+      expect(step.copy.lay.length, step.id).toBeLessThan(260);
+    }
+  });
+
+  it("ends on the honesty panel", () => {
+    // The last thing a first-time reader is told should be how to find out
+    // what is real, because everything before it invited them to believe.
+    expect(ORIENTATION.at(-1)!.id).toBe("honesty");
+  });
+
+  it("uses only placements the card knows how to render", () => {
+    for (const step of ORIENTATION) {
+      expect(["right", "left", "above", "below"]).toContain(step.placement);
     }
   });
 });
