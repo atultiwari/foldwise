@@ -303,11 +303,86 @@ within 0.13 Å of the native floor.
 
 ---
 
-## 9. Not yet validated
+## 9. Renderer — `packages/render` (Phase 4, cartoon only)
+
+**49 tests.** Geometry and colour are three.js-free and tested without a
+graphics context; the three.js binding is a thin layer over them.
+
+### Mesh invariants
+
+Checked on real structures: every index references a vertex that exists, no
+triangle is degenerate, every normal is unit length, every vertex is assigned to
+a real residue and sits within 4 Å of some α-carbon, and the frame never flips
+between neighbours — the last of these is what stops a β-sheet's ribbon tearing
+where its curvature reverses.
+
+`updateRibbon` rewrites positions without touching the index buffer, so the
+folding animation never reallocates topology. Measured at **under 8 ms** for 306
+residues, against a 16 ms budget at 60 fps.
+
+### Colour vision — the palettes are measured, not asserted
+
+Around one man in twelve has a red-green colour vision deficiency. Every
+categorical palette is simulated under protanopia, deuteranopia and tritanopia,
+and every pair within a mode must stay above ΔE 15 (CIE76).
+
+The check found two real failures and corrected one of its own:
+
+1. **Purple against slate collapsed to 14.9 under tritanopia.** Secondary
+   structure is now blue / orange / light neutral, which separates on lightness
+   as well as hue.
+2. **A hand-picked chain palette collapsed to 13.6 under deuteranopia.**
+   Replaced with **Okabe–Ito**, the established colour-blind-safe qualitative
+   set.
+3. **The threshold itself was wrong.** Set at 18 on no particular basis, it then
+   rejected two Okabe–Ito pairs — and a check that fails the reference palette
+   is miscalibrated, not vigilant. Lowered to 15, which is still well above the
+   ΔE ≈ 10 at which colours read as clearly different. The two palette changes
+   above stand: they measured 13.6 and 14.9, and fail at 15 too.
+
+Chain colours are **ordered** greedily by worst-case separation, because chains
+are assigned colours in sequence and what matters is that each prefix is safe.
+The first six stay ≥ 23.5 apart under all three deficiencies; at seven it falls
+to 10.9, because blue against bluish-green collapses under tritanopia and no
+eight-colour set avoids that. Of the v1 library only 2HBS, with eight chains, is
+affected, and there the legend carries it.
+
+### Looked at, not just asserted
+
+Property tests can prove a mesh is closed and its normals are unit length. They
+cannot say it looks like a protein. `dev/` is a visual harness for exactly that,
+and three folds were checked against what they should be:
+
+| Structure | Expected | Rendered |
+|---|---|---|
+| 1IEP ABL kinase | Bilobal: β-rich N-lobe, α-rich C-lobe | Both lobes clearly separated |
+| 2HHB haemoglobin | All-α globin fold, **zero β-sheet** | Entirely helical, no strands |
+| 8DZ2 Mpro dimer | Two β-rich protomers | Both, interface visible |
+
+Haemoglobin is the useful one: rendering with no strands at all independently
+confirms the pipeline's "81 % helix, 0 % strand".
+
+Two bugs were found only by looking. `WebGLRenderer.setSize(w, h, false)`
+sized the drawing buffer but never the CSS size, so on a retina display the
+canvas laid out at twice its container and the molecule sat half off-screen.
+And rotation was applied on the same group as the centring offset — three.js
+applies rotation before position, so the molecule would have swung around a
+point outside itself rather than spinning in place.
+
+### Not yet built
+
+Instanced atoms and bonds, the marching-cubes surface, and residue picking are
+all still to come. Only the cartoon representation exists.
+
+---
+
+## 10. Not yet validated
 
 Named here so nothing is quietly assumed:
 
 - [ ] Contact order at more than one calibration point — currently ubiquitin only
 - [ ] Salt-bridge cutoff on more than two structures — 12 bridges is a thin basis
 - [ ] Trajectory invariants on multi-chain structures — 1UBI and 7VH8 are single chains
+- [ ] Sustained frame rate under animation — mesh rebuild is measured, the full loop is not
+- [ ] Atoms, bonds, surface and picking — not yet written
 - [ ] The ΔF508 / T315I variant deltas — nothing computed yet

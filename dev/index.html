@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Foldwise — render harness</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #101418; color: #e6edf3;
+        font: 13px/1.5 system-ui, sans-serif; overflow: hidden; }
+      #stage { position: absolute; inset: 0; }
+      #hud { position: absolute; left: 14px; top: 12px; z-index: 2;
+        display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+      select, button { font: inherit; background: #1b2129; color: inherit;
+        border: 1px solid #2f3947; border-radius: 6px; padding: 5px 9px; }
+      #stat { position: absolute; right: 14px; top: 12px; z-index: 2;
+        font-variant-numeric: tabular-nums; color: #93a4b8; }
+    </style>
+  </head>
+  <body>
+    <div id="stage"></div>
+    <div id="hud">
+      <select id="structure"></select>
+      <select id="mode"></select>
+      <button id="spin">spin</button>
+    </div>
+    <div id="stat">—</div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

@@ -6,6 +6,9 @@
     },
     {
       "path": "./packages/fold"
+    },
+    {
+      "path": "./packages/render"
     }
   ]
 }

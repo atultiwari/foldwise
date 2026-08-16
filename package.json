@@ -5,7 +5,7 @@
   "type": "module",
   "packageManager": "pnpm@9.12.0",
   "scripts": {
-    "dev": "echo 'apps/web arrives in Phase 5' && exit 1",
+    "dev": "vite --config dev/vite.config.ts",
     "build": "pnpm -r build",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -17,6 +17,7 @@
     "@types/node": "^22.10.2",
     "@vitest/coverage-v8": "^2.1.8",
     "typescript": "^5.7.2",
+    "vite": "^8.2.1",
     "vitest": "^2.1.8",
     "zod": "^4.4.3"
   }

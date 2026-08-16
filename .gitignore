@@ -16,3 +16,4 @@ data/cache/
 
 # TypeScript build output
 *.tsbuildinfo
+dev/dist/
