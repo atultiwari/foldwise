@@ -13,15 +13,32 @@ import { Caption, Frame, type SchematicProps } from "./frame.js";
 /* ── The binding pocket ─────────────────────────────────────────────────── */
 
 /**
- * The pocket, with a gatekeeper that is either small or bulky.
+ * Residue names for the guard at the mouth of the pocket.
+ *
+ * The state carries the residue as a suffix rather than the drawing assuming
+ * one. It used to hard-code Thr315, which was wrong twice over: with T315I
+ * selected it still read "Thr315" as long as a drug had managed to bind, and
+ * the same diagram serves SARS-CoV-2 Mpro, which has no gatekeeper threonine
+ * at all.
+ */
+const GUARD: Readonly<Record<string, { readonly label: string; readonly bulky: boolean }>> = {
+  thr: { label: "Thr315", bulky: false },
+  ile: { label: "Ile315", bulky: true },
+  cys: { label: "Cys145", bulky: false },
+};
+
+/**
+ * The pocket, with a guard that is either small or bulky.
  *
  * Drawn as a slab with a bay cut out of its top edge rather than as one
  * even-odd path — a filled rectangle over a filled rectangle is unambiguous,
  * and reads as a socket at any size.
  */
 export function Lock({ state }: SchematicProps) {
-  const blocked = state === "blocked";
-  const fits = state === "fits";
+  const [phase, residue] = state.split("-");
+  const blocked = phase === "blocked";
+  const fits = phase === "fits";
+  const guard = GUARD[residue ?? ""];
 
   return (
     <Frame
@@ -38,15 +55,17 @@ export function Lock({ state }: SchematicProps) {
 
       {/* The gatekeeper residue, guarding the mouth. */}
       <circle
-        className={`schematic__gatekeeper${blocked ? " schematic__gatekeeper--bulky" : ""}`}
-        cx={122} cy={92} r={blocked ? 24 : 13}
+        className={`schematic__gatekeeper${guard?.bulky === true ? " schematic__gatekeeper--bulky" : ""}`}
+        cx={122} cy={92} r={guard?.bulky === true ? 24 : 13}
       />
-      <Caption x={82} y={96} anchor="end" tone={blocked ? "harm" : "soft"}>
-        {blocked ? "Ile315" : "Thr315"}
-      </Caption>
+      {guard === undefined ? null : (
+        <Caption x={82} y={96} anchor="end" tone={guard.bulky ? "harm" : "soft"}>
+          {guard.label}
+        </Caption>
+      )}
 
       {/* The drug: seated when it fits, held outside when it does not. */}
-      {state !== "empty" ? (
+      {phase !== "empty" ? (
         <g
           className={`schematic__drug${blocked ? " schematic__drug--rejected" : ""}`}
           style={{ transform: blocked ? "translate(0px, -74px)" : "translate(0px, 0px)" }}
