@@ -133,12 +133,78 @@ biology is kept. All four target drugs are present:
 
 ---
 
-## 7. Not yet validated
+## 7. Core maths — `packages/core` (Phase 2)
+
+**66 tests, 99.8% statement / 96.3% branch coverage.**
+
+### SASA — against FreeSASA
+
+Our Shrake–Rupley is compared against **FreeSASA**, an established C library,
+over *exactly* the N/CA/C/O/CB atoms our model carries. Comparing a backbone
+surface against an all-atom one would mean nothing, so the reference is
+regenerated on the same atom set by `python -m foldwise.cli reference`.
+
+| Structure | Atoms | Ours | FreeSASA | Deviation | Worst residue |
+|---|---:|---:|---:|---:|---:|
+| 1UBI | 380 | 4,997.0 Å² | 4,996.2 Å² | **0.02 %** | 1.37 Å² |
+| 7VH8 | 1,530 | 17,105.1 Å² | 17,094.9 Å² | **0.06 %** | 1.54 Å² |
+
+Per-residue Pearson correlation > 0.995 on both. Gate in CI is 2 % total,
+0.995 correlation, and no residue off by more than 12 Å².
+
+At 960 sample points, 1,530 atoms take **46 ms** — comfortably inside an
+interactive budget.
+
+### Radius of gyration
+
+Matches NumPy to 4 decimal places on both fixtures (1UBI 11.4776 Å,
+7VH8 21.5731 Å). Also checked against analytic cases: points on a sphere of
+radius *r* give exactly *r*; a uniform rod of length *L* gives *L*/√12.
+
+### Kabsch superposition
+
+Solved in the quaternion form via Jacobi eigendecomposition of Horn's key
+matrix, so the result is a proper rotation **by construction**.
+
+- Self-superposition, pure translation and known rotation all recover to
+  10 decimal places
+- `det(R) = 1` to 9 decimal places
+- **A mirror image does not fit.** The SVD form of Kabsch can silently return a
+  reflection, which would superpose a molecule perfectly onto its enantiomer.
+  Proteins are chiral, so this has a regression test.
+
+### Contact order — and a trap that cost a factor of two
+
+Ubiquitin's relative contact order comes out at **15.3 %** against the ~15 %
+in Plaxco, Simons & Baker (1998).
+
+Getting there exposed a real conflation. **Contact order and the folding
+coordinate Q use different contact definitions:**
+
+| | Cutoff | Min. separation | Ubiquitin RCO |
+|---|---:|---:|---:|
+| Q (native contact map) | 8 Å | \|i−j\| ≥ 3 | 28.5 % |
+| **Contact order** | 6.5 Å | **\|i−j\| ≥ 1** | **15.3 %** |
+
+Q excludes near-neighbours because residues that are nearly bonded are in
+contact trivially. Contact order includes them, because they are part of what
+makes a protein's contacts local. Applying Q's exclusion to contact order
+roughly doubles the answer. The two conventions are now separate constants with
+a regression test asserting they disagree, so the mistake cannot recur silently.
+
+**Caveat, stated plainly:** Plaxco's criterion is any two *heavy atoms* within
+6 Å. Our model has no side chains beyond Cβ, so we approximate it with a wider
+Cα cutoff calibrated on a single protein. It is not the published definition and
+should not be quoted as though it were.
+
+---
+
+## 8. Not yet validated
 
 Named here so nothing is quietly assumed:
 
-- [ ] SASA (Shrake–Rupley) — needs a FreeSASA comparison
-- [ ] Contact order — needs published RCO values
-- [ ] Kabsch superposition, Rg, RMSD — `packages/core`, not yet written
+- [ ] Contact order at more than one calibration point — currently ubiquitin only
+- [ ] Hydrogen bonds and salt bridges in `packages/core` — not yet written
+- [ ] Residue composition tables (hydropathy, charge, max ASA) — not yet written
 - [ ] Folding trajectory invariants — engine not yet written
 - [ ] The ΔF508 / T315I variant deltas — nothing computed yet
