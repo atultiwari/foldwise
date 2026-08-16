@@ -369,10 +369,83 @@ And rotation was applied on the same group as the centring offset — three.js
 applies rotation before position, so the molecule would have swung around a
 point outside itself rather than spinning in place.
 
-### Not yet built
+### Atoms and bonds
 
-Instanced atoms and bonds, the marching-cubes surface, and residue picking are
-all still to come. Only the cartoon representation exists.
+Instance transforms are computed as plain matrices and checked by transforming
+points through them: a bond's cylinder must land exactly on the two α-carbons it
+joins (verified to 4 decimal places over 20 real bonds), its cross-section must
+stay circular in every direction, and a bond along the basis-construction's seed
+axis — the degenerate case — must still come out finite.
+
+**Chain breaks are not drawn.** A bond longer than 4.5 Å is a gap in the
+crystal, not a bond, and drawing a stick across it would assert a connection the
+experiment never saw.
+
+### Surface
+
+Two deliberate departures from the usual approach, both to the good:
+
+- **The field is an exact union of spheres, not metaballs.** A sum of Gaussians
+  gives a pleasant blob, but pockets fill in and clefts round over — and a
+  binding site that does not look like a binding site is worse than useless
+  here. The minimum of per-atom signed distances gives the van der Waals
+  surface exactly; adding the probe radius gives solvent-accessible exactly.
+  Verified: a lone sphere of radius 3 meshes between 2.7 and 3.3 Å, and adding
+  a 1.4 Å probe grows it by 1.4 Å.
+- **Surface nets, not marching cubes.** Marching cubes needs a 256-case table —
+  thousands of literal entries nobody can meaningfully review. Surface nets is a
+  fraction of the code and produces a watertight mesh.
+
+**Watertight** is tested, not assumed: zero edges belong to only one triangle.
+A real protein does produce ~70 non-manifold edges out of 23,000 (0.3 %), where
+two sheets of surface pass through one cell — the known limitation of one vertex
+per cell. It is not visible at this scale.
+
+Meshing 306 residues takes **~475 ms**, which is why it is debounced behind an
+idle timer rather than rebuilt per frame.
+
+> **Bug found only by looking:** the distance field was seeded with `+Infinity`,
+> so any gradient touching an untouched voxel computed `Infinity − finite =
+> Infinity` and then `Infinity / Infinity = NaN`. Vertices on the outer lip of a
+> protrusion got NaN normals. Seeded with a large *finite* value instead, with a
+> regression test that checks a real protein for NaN — the small synthetic cases
+> never reached far enough out to hit it.
+
+### Picking
+
+Every α-carbon is projected and the nearest to the pointer wins, with depth
+breaking ties so the residue in front is selected rather than one hidden behind
+it. Points behind the camera are rejected explicitly: dividing through by a
+negative *w* projects them back through the origin, where they reappear
+mirrored in front of the viewer and can be picked by mistake.
+
+Verified live on 7VH8 — three pointer positions returned three distinct
+residues with the right identity and secondary structure.
+
+### Looked at, again
+
+All four representations were checked in the harness on 7VH8. Two more bugs
+surfaced that no unit test would have caught:
+
+1. **The surface rendered see-through.** `transparent: true` on a closed surface
+   needs its triangles depth-sorted to composite correctly; without that the far
+   wall shows through the near one and the molecule reads as a pile of interior
+   fragments. Made opaque.
+2. **Sticks and spacefill drew nothing.** Instance matrices start as identity,
+   and they were only written on a conformation change — so a structure shown in
+   its native state, which never has one, left every atom heaped at the origin.
+
+A useful discriminating check when the surface still looked wrong: colouring it
+flat. It resolved into a smooth closed solid, which established the geometry was
+right and what looked like windows into the interior was hard-edged per-residue
+colour patching plus genuine concavities.
+
+### Not covered by tests
+
+`stage.ts` — the three.js binding — has no unit tests. It is the one file that
+needs a graphics context, and it is deliberately thin: every decision it makes
+is delegated to a module that *is* tested. It is covered by looking at it, and
+that is recorded above rather than glossed over.
 
 ---
 

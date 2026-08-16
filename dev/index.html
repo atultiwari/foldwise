@@ -13,6 +13,8 @@
         border: 1px solid #2f3947; border-radius: 6px; padding: 5px 9px; }
       #stat { position: absolute; right: 14px; top: 12px; z-index: 2;
         font-variant-numeric: tabular-nums; color: #93a4b8; }
+      #hint { position: absolute; left: 14px; bottom: 12px; z-index: 2;
+        font-variant-numeric: tabular-nums; color: #cfe0f0; }
     </style>
   </head>
   <body>
@@ -20,9 +22,11 @@
     <div id="hud">
       <select id="structure"></select>
       <select id="mode"></select>
+      <select id="rep"></select>
       <button id="spin">spin</button>
     </div>
     <div id="stat">—</div>
+    <div id="hint"></div>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>

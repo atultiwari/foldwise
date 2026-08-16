@@ -13,9 +13,8 @@ on screen. Everything that is a model rather than a measurement is labelled as o
 
 ## Status
 
-**Phases 0–3 complete, Phase 4 under way.** The pipeline, biophysics core and
-trajectory engine are done; the renderer draws cartoons. There is no application
-yet.
+**Phases 0–4 complete.** Pipeline, biophysics core, trajectory engine and
+renderer are all done and validated. The application shell is next.
 
 | Phase | Scope | State |
 |---|---|---|
@@ -23,8 +22,8 @@ yet.
 | 1 · Data pipeline | mmCIF → validated JSON, own DSSP | ✅ **Done** — 51 tests, 96.0% DSSP agreement |
 | 2 · Core maths | Kabsch, Rg, RMSD, contacts, SASA, H-bonds, salt bridges, composition | ✅ **Done** — 107 tests, SASA within 0.02% of FreeSASA |
 | 3 · Trajectory engine | Calibrated coil, folding schedule, constrained morph | ✅ **Done** — 24 invariant tests, runs in a Worker |
-| 4 · Renderer | three.js cartoon, instanced atoms, surface | 🟡 **In progress** — cartoon + colour modes done, 49 tests |
-| 5 · UI shell | React panels, SVG charts, URL state | ⬜ Pending |
+| 4 · Renderer | Cartoon, atoms, sticks, surface, colour modes, picking | ✅ **Done** — 81 tests, all four representations verified visually |
+| 5 · UI shell | React panels, SVG charts, URL state | ⏳ **Next** |
 | 6 · Editorial layer | Per-structure copy, honesty panel, citations | ⬜ Pending |
 | 7 · Ship | Export, PWA, accessibility | ⬜ Pending |
 
@@ -35,7 +34,7 @@ Phase gates and the full plan live in the parent workspace, outside this repo:
 
 ```bash
 pnpm data       # rebuild all 9 structures from RCSB     -> 9 built, 0 failed
-pnpm test       # core, trajectory engine, renderer       -> 180 passed
+pnpm test       # core, trajectory engine, renderer       -> 212 passed
 pnpm dev        # visual harness for the renderer         -> localhost:5273
 pnpm coverage   #                                        -> 99% statements
 pnpm typecheck
@@ -52,8 +51,8 @@ cd pipeline && uv run python -m foldwise.cli reference
 
 - No application shell yet. `pnpm dev` opens the renderer's visual harness,
   not the product.
-- The renderer draws cartoons only. Atoms, bonds, the surface and residue
-  picking are still to come.
+- The renderer has cartoon, spacefill, sticks and surface, plus residue
+  picking — but nothing yet drives it from a timeline.
 
 ---
 
@@ -148,9 +147,10 @@ foldwise/
 │   ├── fold/                 Folding trajectory engine
 │   │   └── src/              random, spatialHash, coil, onset, constraints,
 │   │                         morph, trajectory, worker
-│   └── render/               Cartoon geometry and colour
-│       └── src/              spline, profile, ribbon, palette, colorModes,
-│                             camera, stage (the only three.js file)
+│   └── render/               Geometry, colour and the renderer
+│       └── src/              spline, profile, ribbon, instanced, surface,
+│                             palette, colorModes, camera, picking,
+│                             stage (the only three.js file)
 ├── dev/                      Visual harness -- `pnpm dev`
 ├── data/
 │   ├── cache/                Raw downloads — gitignored

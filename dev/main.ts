@@ -7,7 +7,8 @@
  */
 
 import {
-  COLOR_MODES, Stage, colorResidues, type ColorModeKey,
+  COLOR_MODES, Stage, colorResidues,
+  type ColorModeKey, type Representation,
 } from "../packages/render/src/index.js";
 
 interface Chain {
@@ -32,11 +33,27 @@ const stage = new Stage(document.querySelector<HTMLElement>("#stage")!);
 const picker = document.querySelector<HTMLSelectElement>("#structure")!;
 const modePicker = document.querySelector<HTMLSelectElement>("#mode")!;
 const stat = document.querySelector<HTMLElement>("#stat")!;
+const hint = document.querySelector<HTMLElement>("#hint")!;
 
 for (const [path] of entries) {
   picker.append(new Option(path.split("/").pop()!.replace(".json", ""), path));
 }
 for (const mode of COLOR_MODES) modePicker.append(new Option(mode.label, mode.key));
+
+const repPicker = document.querySelector<HTMLSelectElement>("#rep")!;
+for (const rep of ["cartoon", "spacefill", "sticks", "surface"]) {
+  repPicker.append(new Option(rep, rep));
+}
+repPicker.addEventListener("change", () => {
+  const started = performance.now();
+  stage.setRepresentation(repPicker.value as Representation);
+  if (repPicker.value === "surface") {
+    stage.rebuildSurface();
+    hint.textContent = `surface meshed in ${(performance.now() - started).toFixed(0)} ms`;
+  } else {
+    hint.textContent = "";
+  }
+});
 
 let current: Structure | null = null;
 
@@ -91,6 +108,20 @@ window.addEventListener("pointermove", (event) => {
 surface.addEventListener("wheel", (event) => {
   stage.zoom(1 + (event as WheelEvent).deltaY * 0.001);
 });
+
+surface.addEventListener("pointermove", (event) => {
+  const box = surface.getBoundingClientRect();
+  const hit = stage.pick(event.clientX - box.left, event.clientY - box.top);
+  if (hit === null) {
+    hint.textContent = "";
+    return;
+  }
+  const chain = current?.chains[hit.chain];
+  hint.textContent = chain
+    ? `chain ${chain.id} · ${chain.seq[hit.residue]}${chain.ca.length ? "" : ""}${hit.residue + 1} · ${chain.ss[hit.residue]}`
+    : "";
+});
+
 
 stage.start();
 void show(entries[0]![0]);

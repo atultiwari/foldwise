@@ -32,5 +32,14 @@ export type { ColorInput, ColorMode, ColorModeKey, ResidueContext } from "./colo
 export { boundingSphere, damp, fitDistance, needsReframe } from "./camera.js";
 export type { Bounds } from "./camera.js";
 
+export { ATOM_RADIUS, BOND_RADIUS, MAX_BOND_LENGTH, atomMatrices, bondMatrices, transformPoint } from "./instanced.js";
+export type { BondInstances } from "./instanced.js";
+
+export { DEFAULT_RESOLUTION, MAX_VOXELS, PROBE_RADIUS, buildSurface } from "./surface.js";
+export type { SurfaceMesh, SurfaceOptions } from "./surface.js";
+
+export { DEFAULT_PICK_RADIUS, multiply, pickResidue, project } from "./picking.js";
+export type { PickOptions, Projected, Viewport } from "./picking.js";
+
 export { Stage } from "./stage.js";
-export type { ChainView, StageOptions } from "./stage.js";
+export type { ChainView, Representation, StageOptions } from "./stage.js";

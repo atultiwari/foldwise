@@ -7,13 +7,32 @@
  */
 
 import {
-  AmbientLight, BufferAttribute, BufferGeometry, Color, DirectionalLight, Group,
-  Mesh, MeshStandardMaterial, PerspectiveCamera, Scene, Vector3, WebGLRenderer,
+  AmbientLight, BufferAttribute, BufferGeometry, Color, CylinderGeometry,
+  DirectionalLight, DynamicDrawUsage, Group, InstancedMesh, Matrix4, Mesh,
+  MeshStandardMaterial, PerspectiveCamera, Scene, SphereGeometry, Vector3,
+  WebGLRenderer,
 } from "three";
 
 import { boundingSphere, damp, fitDistance } from "./camera.js";
 import { colorVertices } from "./colorModes.js";
+import { ATOM_RADIUS, BOND_RADIUS, atomMatrices, bondMatrices } from "./instanced.js";
+import { pickResidue, type Viewport } from "./picking.js";
 import { buildRibbon, updateRibbon, type RibbonGeometry } from "./ribbon.js";
+import { buildSurface } from "./surface.js";
+
+/** How the molecule is drawn. */
+export type Representation = "cartoon" | "spacefill" | "sticks" | "surface";
+
+/** Van der Waals radius used for the surface, per alpha carbon. */
+const SURFACE_RADIUS = 3.2;
+
+/**
+ * The surface is rebuilt only once the user stops moving the timeline.
+ *
+ * Meshing a volume takes far longer than a frame, so rebuilding it on every
+ * scrub step would drop the animation to a slideshow.
+ */
+const SURFACE_IDLE_MS = 220;
 
 export interface ChainView {
   readonly ca: ArrayLike<number>;
@@ -34,7 +53,12 @@ interface ChainState {
   readonly geometry: RibbonGeometry;
   readonly bufferGeometry: BufferGeometry;
   readonly mesh: Mesh;
+  readonly atoms: InstancedMesh;
+  readonly bonds: InstancedMesh;
+  readonly surface: Mesh;
   secondaryStructure: string;
+  ca: ArrayLike<number>;
+  residueColors: Float32Array;
 }
 
 export class Stage {
@@ -59,6 +83,9 @@ export class Stage {
   private desiredDistance = 60;
   private frameHandle = 0;
   private lastTime = 0;
+  private representation: Representation = "cartoon";
+  private surfaceTimer: ReturnType<typeof setTimeout> | undefined;
+  private surfaceStale = true;
   private readonly observer: ResizeObserver;
 
   constructor(
@@ -105,12 +132,48 @@ export class Stage {
         new MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.02 }),
       );
       mesh.frustumCulled = false;
-      this.pivot.add(mesh);
-      this.chains.push({
-        geometry, bufferGeometry, mesh,
+
+      const residues = chain.secondaryStructure.length;
+      const atoms = new InstancedMesh(
+        new SphereGeometry(1, 16, 12),
+        new MeshStandardMaterial({ roughness: 0.4, metalness: 0.05 }),
+        residues,
+      );
+      atoms.instanceMatrix.setUsage(DynamicDrawUsage);
+      atoms.frustumCulled = false;
+
+      // Unit cylinder along +Y, centred: the convention bondMatrices assumes.
+      const bonds = new InstancedMesh(
+        new CylinderGeometry(1, 1, 1, 10, 1, true),
+        new MeshStandardMaterial({ roughness: 0.45, metalness: 0.03 }),
+        Math.max(1, residues - 1),
+      );
+      bonds.instanceMatrix.setUsage(DynamicDrawUsage);
+      bonds.frustumCulled = false;
+
+      const surface = new Mesh(
+        new BufferGeometry(),
+        // Opaque. A translucent closed surface needs its triangles depth-sorted
+        // to composite correctly, and without that the far wall shows through
+        // the near one and the molecule reads as a pile of interior fragments.
+        new MeshStandardMaterial({ vertexColors: true, roughness: 0.72, metalness: 0.0 }),
+      );
+      surface.frustumCulled = false;
+
+      this.pivot.add(mesh, atoms, bonds, surface);
+      const state: ChainState = {
+        geometry, bufferGeometry, mesh, atoms, bonds, surface,
         secondaryStructure: chain.secondaryStructure,
-      });
+        ca: chain.ca,
+        residueColors: new Float32Array(residues * 3).fill(1),
+      };
+      this.chains.push(state);
+      // Instance matrices start as identity, so without this the atoms and
+      // bonds sit in a heap at the origin until the first conformation change
+      // -- and for a structure shown in its native state there is never one.
+      this.updateInstances(state);
     }
+    this.applyRepresentation();
     this.frameAll();
   }
 
@@ -119,10 +182,64 @@ export class Stage {
     this.chains.forEach((chain, index) => {
       const ca = perChainCa[index];
       if (ca === undefined) return;
+      chain.ca = ca;
       updateRibbon(chain.geometry, ca, chain.secondaryStructure);
       chain.bufferGeometry.getAttribute("position").needsUpdate = true;
       chain.bufferGeometry.getAttribute("normal").needsUpdate = true;
+      this.updateInstances(chain);
     });
+    this.surfaceStale = true;
+    this.scheduleSurface();
+  }
+
+  private updateInstances(chain: ChainState): void {
+    const residues = chain.secondaryStructure.length;
+    const scratch = new Matrix4();
+
+    const atoms = atomMatrices(chain.ca, ATOM_RADIUS);
+    for (let i = 0; i < residues; i++) {
+      scratch.fromArray(atoms, i * 16);
+      chain.atoms.setMatrixAt(i, scratch);
+    }
+    chain.atoms.count = residues;
+    chain.atoms.instanceMatrix.needsUpdate = true;
+
+    const bonds = bondMatrices(chain.ca, residues, BOND_RADIUS);
+    for (let i = 0; i < bonds.count; i++) {
+      scratch.fromArray(bonds.matrices, i * 16);
+      chain.bonds.setMatrixAt(i, scratch);
+    }
+    chain.bonds.count = bonds.count;
+    chain.bonds.instanceMatrix.needsUpdate = true;
+
+    this.paintInstances(chain, bonds.residueOf, bonds.count);
+  }
+
+  private paintInstances(
+    chain: ChainState, bondResidue: Uint32Array, bondCount: number,
+  ): void {
+    const colour = new Color();
+    const residues = chain.secondaryStructure.length;
+    for (let i = 0; i < residues; i++) {
+      colour.setRGB(
+        chain.residueColors[i * 3] ?? 1,
+        chain.residueColors[i * 3 + 1] ?? 1,
+        chain.residueColors[i * 3 + 2] ?? 1,
+      );
+      chain.atoms.setColorAt(i, colour);
+    }
+    if (chain.atoms.instanceColor !== null) chain.atoms.instanceColor.needsUpdate = true;
+
+    for (let i = 0; i < bondCount; i++) {
+      const residue = bondResidue[i]!;
+      colour.setRGB(
+        chain.residueColors[residue * 3] ?? 1,
+        chain.residueColors[residue * 3 + 1] ?? 1,
+        chain.residueColors[residue * 3 + 2] ?? 1,
+      );
+      chain.bonds.setColorAt(i, colour);
+    }
+    if (chain.bonds.instanceColor !== null) chain.bonds.instanceColor.needsUpdate = true;
   }
 
   /** Apply per-residue colours, one array per chain. */
@@ -130,10 +247,97 @@ export class Stage {
     this.chains.forEach((chain, index) => {
       const colors = perChainColors[index];
       if (colors === undefined) return;
+      chain.residueColors = Float32Array.from(colors as ArrayLike<number>);
       const attribute = chain.bufferGeometry.getAttribute("color") as BufferAttribute;
       attribute.array.set(colorVertices(colors, chain.geometry.residueOf));
       attribute.needsUpdate = true;
+
+      const bonds = bondMatrices(chain.ca, chain.secondaryStructure.length, BOND_RADIUS);
+      this.paintInstances(chain, bonds.residueOf, bonds.count);
+      this.paintSurface(chain);
     });
+  }
+
+  /** Choose how the molecule is drawn. */
+  setRepresentation(representation: Representation): void {
+    this.representation = representation;
+    this.applyRepresentation();
+    if (representation === "surface") this.scheduleSurface();
+  }
+
+  private applyRepresentation(): void {
+    for (const chain of this.chains) {
+      chain.mesh.visible = this.representation === "cartoon";
+      chain.atoms.visible = this.representation === "spacefill";
+      chain.bonds.visible = this.representation === "sticks";
+      chain.surface.visible = this.representation === "surface";
+    }
+  }
+
+  private scheduleSurface(): void {
+    if (this.representation !== "surface" || !this.surfaceStale) return;
+    if (this.surfaceTimer !== undefined) clearTimeout(this.surfaceTimer);
+    this.surfaceTimer = setTimeout(() => {
+      this.surfaceTimer = undefined;
+      this.rebuildSurface();
+    }, SURFACE_IDLE_MS);
+  }
+
+  /** Mesh the molecular surface. Expensive; call when the view is settled. */
+  rebuildSurface(): void {
+    for (const chain of this.chains) {
+      const residues = chain.secondaryStructure.length;
+      const mesh = buildSurface(
+        chain.ca,
+        new Float32Array(residues).fill(SURFACE_RADIUS),
+        Uint32Array.from({ length: residues }, (_, i) => i),
+        { probeRadius: 0 },
+      );
+
+      const geometry = chain.surface.geometry;
+      geometry.setAttribute("position", new BufferAttribute(mesh.positions, 3));
+      geometry.setAttribute("normal", new BufferAttribute(mesh.normals, 3));
+      geometry.setAttribute(
+        "color", new BufferAttribute(new Float32Array(mesh.vertexCount * 3), 3),
+      );
+      geometry.setIndex(new BufferAttribute(mesh.indices, 1));
+      geometry.userData["residueOf"] = mesh.residueOf;
+      this.paintSurface(chain);
+    }
+    this.surfaceStale = false;
+  }
+
+  private paintSurface(chain: ChainState): void {
+    const residueOf = chain.surface.geometry.userData["residueOf"] as Uint32Array | undefined;
+    const attribute = chain.surface.geometry.getAttribute("color") as BufferAttribute | undefined;
+    if (residueOf === undefined || attribute === undefined) return;
+    attribute.array.set(colorVertices(chain.residueColors, residueOf));
+    attribute.needsUpdate = true;
+  }
+
+  /**
+   * The residue under a pointer position, in CSS pixels relative to the
+   * container, or -1 if none is close enough.
+   */
+  pick(pointerX: number, pointerY: number): { chain: number; residue: number } | null {
+    const viewport: Viewport = {
+      width: this.container.clientWidth,
+      height: this.container.clientHeight,
+    };
+    this.camera.updateMatrixWorld();
+    this.pivot.updateMatrixWorld(true);
+
+    for (let index = 0; index < this.chains.length; index++) {
+      const chain = this.chains[index]!;
+      // Fold the molecule's own transform into the view-projection, so picking
+      // works after the user has rotated or the camera has moved.
+      const matrix = new Matrix4()
+        .multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse)
+        .multiply(this.pivot.matrixWorld);
+      const residue = pickResidue(chain.ca, matrix.elements, pointerX, pointerY, viewport);
+      if (residue >= 0) return { chain: index, residue };
+    }
+    return null;
   }
 
   /** Fit the camera to everything currently loaded. */
@@ -215,9 +419,15 @@ export class Stage {
 
   clear(): void {
     for (const chain of this.chains) {
-      this.pivot.remove(chain.mesh);
+      this.pivot.remove(chain.mesh, chain.atoms, chain.bonds, chain.surface);
       chain.bufferGeometry.dispose();
+      chain.atoms.geometry.dispose();
+      chain.bonds.geometry.dispose();
+      chain.surface.geometry.dispose();
       (chain.mesh.material as MeshStandardMaterial).dispose();
+      (chain.atoms.material as MeshStandardMaterial).dispose();
+      (chain.bonds.material as MeshStandardMaterial).dispose();
+      (chain.surface.material as MeshStandardMaterial).dispose();
     }
     this.chains.length = 0;
   }
