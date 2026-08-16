@@ -20,4 +20,6 @@ export { EXPLAINERS, FIRST_LOOK, NOTATION, explainer, firstLook } from "./guidan
 export type { Explainer, FirstLookItem, NotationEntry } from "./guidance.js";
 
 export { ORIENTATION, ORIENTATION_VERSION } from "./tour.js";
-export type { TourStep } from "./tour.js";
+export type { Anchor, ElementAnchor, ResidueAnchor, StepView, StoryTour, TourStep } from "./tour.js";
+
+export { STORY_TOURS, storyTour } from "./storyTours.js";

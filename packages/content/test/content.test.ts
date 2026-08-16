@@ -7,6 +7,7 @@ import { CITATIONS, citation, citationHref, formatCitation } from "../src/citati
 import { EXPLAINERS, NOTATION, firstLook } from "../src/guidance.js";
 import { HONESTY } from "../src/honesty.js";
 import { ORIENTATION } from "../src/tour.js";
+import { STORY_TOURS, storyTour } from "../src/storyTours.js";
 import {
   citationSchema, honestySchema, LEVELS, storySchema, structureContentSchema,
 } from "../src/schema.js";
@@ -285,7 +286,9 @@ describe("the orientation tour", () => {
 
   it("anchors every step to a class selector in the app shell", () => {
     for (const step of ORIENTATION) {
-      expect(step.anchor, step.id).toMatch(/^\.[a-z][\w-]*$/);
+      expect(step.anchor.kind, step.id).toBe("element");
+      if (step.anchor.kind !== "element") continue;
+      expect(step.anchor.selector, step.id).toMatch(/^\.[a-z][\w-]*$/);
     }
   });
 
@@ -315,6 +318,106 @@ describe("the orientation tour", () => {
   it("uses only placements the card knows how to render", () => {
     for (const step of ORIENTATION) {
       expect(["right", "left", "above", "below"]).toContain(step.placement);
+    }
+  });
+});
+
+/**
+ * Story tours drive the application, so a wrong residue here is a tour that
+ * confidently points at the wrong atom. Held to the same standard as the
+ * annotations: every residue is looked up in the structure file.
+ */
+describe("story tours", () => {
+  it("provides a tour for every clinical story", () => {
+    for (const entry of STORIES) {
+      expect(storyTour(entry.id), `tour for ${entry.id}`).toBeDefined();
+    }
+  });
+
+  it("verifies every residue a step points at", () => {
+    for (const tour of STORY_TOURS) {
+      for (const step of tour.steps) {
+        if (step.anchor.kind !== "residue") continue;
+        const structureId = step.view?.structure;
+        expect(structureId, `${tour.id}/${step.id} names a structure`).toBeDefined();
+
+        const structure = loadStructure(structureId!);
+        const chain = structure.chains.find((c) => c.id === step.anchor.chain);
+        expect(chain, `${tour.id}/${step.id}: chain ${step.anchor.chain}`).toBeDefined();
+
+        const index = chain!.res_nums.indexOf(step.anchor.resNum);
+        expect(index, `${tour.id}/${step.id}: residue ${step.anchor.resNum}`)
+          .toBeGreaterThanOrEqual(0);
+        expect(chain!.seq[index], `${tour.id}/${step.id}`).toBe(step.anchor.code);
+      }
+    }
+  });
+
+  it("only names structures that exist in its own story", () => {
+    // A tour that wanders into another story's structures has lost its thread.
+    for (const tour of STORY_TOURS) {
+      const owned = new Set(story(tour.id)!.structures);
+      for (const step of tour.steps) {
+        if (step.view?.structure === undefined) continue;
+        expect(owned.has(step.view.structure), `${tour.id}/${step.id}`).toBe(true);
+      }
+    }
+  });
+
+  it("keeps every timeline position in range", () => {
+    for (const tour of STORY_TOURS) {
+      for (const step of tour.steps) {
+        if (step.view?.progress === undefined) continue;
+        expect(step.view.progress).toBeGreaterThanOrEqual(0);
+        expect(step.view.progress).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
+  it("uses only colour modes the renderer knows", () => {
+    const known = new Set([
+      "structure", "direction", "hydropathy", "charge", "flexibility", "burial", "chain",
+    ]);
+    for (const tour of STORY_TOURS) {
+      for (const step of tour.steps) {
+        if (step.view?.color === undefined) continue;
+        expect(known.has(step.view.color), `${tour.id}/${step.id}: ${step.view.color}`).toBe(true);
+      }
+    }
+  });
+
+  it("writes every step at all three reading levels", () => {
+    for (const tour of STORY_TOURS) {
+      for (const step of tour.steps) {
+        for (const level of LEVELS) {
+          expect(step.copy[level].length, `${tour.id}/${step.id} · ${level}`).toBeGreaterThan(40);
+        }
+      }
+    }
+  });
+
+  it("stays between five and nine beats", () => {
+    // Short enough to hold attention, long enough to carry a mechanism.
+    for (const tour of STORY_TOURS) {
+      expect(tour.steps.length, tour.id).toBeGreaterThanOrEqual(5);
+      expect(tour.steps.length, tour.id).toBeLessThanOrEqual(9);
+    }
+  });
+
+  it("has unique step ids within each tour", () => {
+    for (const tour of STORY_TOURS) {
+      expect(new Set(tour.steps.map((s) => s.id)).size, tour.id).toBe(tour.steps.length);
+    }
+  });
+
+  it("ends each tour in the clinic, not in the structure", () => {
+    // A tour that stops at the geometry has not finished the job. The last
+    // beat must connect to something a doctor recognises.
+    const clinical = /crisis|hypoxia|corrector|potentiator|therapy|drug|tablet|prescrib|treat|design/i;
+    for (const tour of STORY_TOURS) {
+      const final = tour.steps.at(-1)!;
+      const text = `${final.title} ${final.copy.student}`;
+      expect(clinical.test(text), `${tour.id} ends on: ${final.title}`).toBe(true);
     }
   });
 });

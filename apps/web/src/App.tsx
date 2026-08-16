@@ -1,17 +1,18 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { COLOR_MODES } from "@foldwise/render";
 import { REPRESENTATIONS, coverage, unobservedResidues, type Structure } from "@foldwise/ui";
 
-import type { Level } from "@foldwise/content";
+import { ORIENTATION, storyForStructure, storyTour, type Level } from "@foldwise/content";
+import type { Stage } from "@foldwise/render";
 
 import { FirstLook, NotationKey } from "./components/Explain.js";
 import { HonestySheet } from "./components/HonestySheet.js";
 import { Library } from "./components/Library.js";
 import { StoryPanel } from "./components/StoryPanel.js";
-import { Tour, shouldAutoStart } from "./components/Tour.js";
+import { Tour, shouldAutoStart, type TourRun } from "./components/Tour.js";
 import { ModeTabs } from "./components/ModeTabs.js";
-import { Readouts } from "./components/Readouts.js";
+import { Readouts, type Hit } from "./components/Readouts.js";
 import { StageView } from "./components/StageView.js";
 import { Transport } from "./components/Transport.js";
 import { entryFor } from "./data/library.js";
@@ -23,11 +24,17 @@ export function App() {
   const view = useView();
   const [structure, setStructure] = useState<Structure | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [hovered, setHovered] = useState<number | null>(null);
+  const [hovered, setHovered] = useState<Hit | null>(null);
   const [speed, setSpeed] = useState(1);
   const [level, setLevel] = useState<Level>("student");
   const [honestyOpen, setHonestyOpen] = useState(false);
-  const [tourOpen, setTourOpen] = useState(false);
+  const [tour, setTour] = useState<TourRun | null>(null);
+  const stageRef = useRef<Stage | null>(null);
+  const locate = useCallback(
+    (chain: number, residue: number) => stageRef.current?.locate(chain, residue) ?? null,
+    [],
+  );
+  const onStageReady = useCallback((stage: Stage | null) => { stageRef.current = stage; }, []);
 
   useEffect(() => listenToHistory(), []);
 
@@ -35,7 +42,7 @@ export function App() {
   // anchors can be measured.
   useEffect(() => {
     if (!shouldAutoStart()) return;
-    const timer = setTimeout(() => setTourOpen(true), 700);
+    const timer = setTimeout(() => setTour({ steps: ORIENTATION, kind: "orientation" }), 700);
     return () => clearTimeout(timer);
   }, []);
 
@@ -68,7 +75,11 @@ export function App() {
           <p>Watch real proteins fold — and see why it matters clinically</p>
         </div>
         <ModeTabs />
-        <button type="button" className="masthead__link" onClick={() => setTourOpen(true)}>
+        <button
+          type="button"
+          className="masthead__link"
+          onClick={() => setTour({ steps: ORIENTATION, kind: "orientation" })}
+        >
           Show me around
         </button>
         <button type="button" className="honesty-link" onClick={() => setHonestyOpen(true)}>
@@ -78,13 +89,24 @@ export function App() {
 
       <aside className="rail rail--left">
         <Library />
-        <StoryPanel structureId={view.structure} level={level} onLevel={setLevel} />
+        <StoryPanel
+          structureId={view.structure}
+          level={level}
+          onLevel={setLevel}
+          onStartTour={() => {
+            const story = storyForStructure(view.structure);
+            const found = story === undefined ? undefined : storyTour(story.id);
+            if (found !== undefined) {
+              setTour({ steps: found.steps, kind: "story", title: found.title });
+            }
+          }}
+        />
         <FirstLook structureId={view.structure} />
         <NotationKey />
       </aside>
 
       <main className="centre">
-        <StageView structure={structure} trajectory={trajectory} onHover={setHovered} />
+        <StageView structure={structure} trajectory={trajectory} onHover={setHovered} onReady={onStageReady} />
 
         <div className="overlay overlay--top">
           {structure !== null ? (
@@ -157,7 +179,13 @@ export function App() {
         ) : null}
       </aside>
 
-      <Tour open={tourOpen} level={level} onClose={() => setTourOpen(false)} />
+      <Tour
+        run={tour}
+        level={level}
+        structure={structure}
+        locate={locate}
+        onClose={() => setTour(null)}
+      />
       <HonestySheet open={honestyOpen} onClose={() => setHonestyOpen(false)} />
 
       <footer className="foot">

@@ -16,7 +16,7 @@ import {
 import { boundingSphere, damp, fitDistance } from "./camera.js";
 import { colorVertices } from "./colorModes.js";
 import { ATOM_RADIUS, BOND_RADIUS, atomMatrices, bondMatrices } from "./instanced.js";
-import { pickResidue, type Viewport } from "./picking.js";
+import { pickResidue, project, type Viewport } from "./picking.js";
 import { buildRibbon, updateRibbon, type RibbonGeometry } from "./ribbon.js";
 import { buildSurface } from "./surface.js";
 
@@ -330,6 +330,37 @@ export class Stage {
     if (residueOf === undefined || attribute === undefined) return;
     attribute.array.set(colorVertices(chain.residueColors, residueOf));
     attribute.needsUpdate = true;
+  }
+
+  /**
+   * Where a given residue currently sits on screen, in CSS pixels relative to
+   * the container.
+   *
+   * The inverse of `pick`, and what lets a guided tour point at a residue in
+   * the model rather than only at interface chrome. Returns null when the
+   * residue is behind the camera or outside the frame, so a caller can fall
+   * back rather than drawing a callout to nowhere.
+   */
+  locate(chainIndex: number, residueIndex: number): { x: number; y: number } | null {
+    const chain = this.chains[chainIndex];
+    if (chain === undefined) return null;
+    const residues = chain.secondaryStructure.length;
+    if (residueIndex < 0 || residueIndex >= residues) return null;
+
+    this.camera.updateMatrixWorld();
+    this.pivot.updateMatrixWorld(true);
+    const matrix = new Matrix4()
+      .multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse)
+      .multiply(this.pivot.matrixWorld);
+
+    const screen = project(
+      matrix.elements,
+      chain.ca[residueIndex * 3]!,
+      chain.ca[residueIndex * 3 + 1]!,
+      chain.ca[residueIndex * 3 + 2]!,
+      { width: this.container.clientWidth, height: this.container.clientHeight },
+    );
+    return screen.visible ? { x: screen.x, y: screen.y } : null;
   }
 
   /**

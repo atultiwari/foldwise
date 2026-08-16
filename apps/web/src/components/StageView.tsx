@@ -9,7 +9,9 @@
 import { useEffect, useRef } from "react";
 
 import { Stage, colorResidues } from "@foldwise/render";
-import { chainIndices, type Structure } from "@foldwise/ui";
+import { chainIndices, flatten, globalIndex, type Structure } from "@foldwise/ui";
+
+import type { Hit } from "./Readouts.js";
 
 import { frameOf, type TrajectoryState } from "../fold/useTrajectory.js";
 import { useView } from "../state/store.js";
@@ -17,7 +19,9 @@ import { useView } from "../state/store.js";
 interface StageViewProps {
   readonly structure: Structure | null;
   readonly trajectory: TrajectoryState;
-  readonly onHover: (residue: number | null) => void;
+  readonly onHover: (hit: Hit | null) => void;
+  /** Handed the Stage once it exists, so a tour can locate residues in 3D. */
+  readonly onReady?: (stage: Stage | null) => void;
 }
 
 /** The panel colour the canvas sits on, so the two agree in either theme. */
@@ -26,7 +30,7 @@ function readPanelColour(element: HTMLElement): string {
   return value.length > 0 ? value : "#ffffff";
 }
 
-export function StageView({ structure, trajectory, onHover }: StageViewProps) {
+export function StageView({ structure, trajectory, onHover, onReady }: StageViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<Stage | null>(null);
 
@@ -43,11 +47,13 @@ export function StageView({ structure, trajectory, onHover }: StageViewProps) {
     const stage = new Stage(container, { background: readPanelColour(container) });
     stageRef.current = stage;
     stage.start();
+    onReady?.(stage);
     return () => {
+      onReady?.(null);
       stage.dispose();
       stageRef.current = null;
     };
-  }, []);
+  }, [onReady]);
 
   // Load geometry when the structure changes.
   useEffect(() => {
@@ -106,14 +112,18 @@ export function StageView({ structure, trajectory, onHover }: StageViewProps) {
         }
         const box = event.currentTarget.getBoundingClientRect();
         const hit = stage.pick(event.clientX - box.left, event.clientY - box.top);
-        onHover(hit === null ? null : hit.residue);
+        onHover(hit);
       }}
       onClick={(event) => {
         const stage = stageRef.current;
         if (stage === null) return;
         const box = event.currentTarget.getBoundingClientRect();
         const hit = stage.pick(event.clientX - box.left, event.clientY - box.top);
-        setSelected(hit === null ? -1 : hit.residue);
+        // Stored as an index into the whole molecule, so the URL is
+        // unambiguous for a multi-chain structure.
+        setSelected(hit === null || structure === null
+          ? -1
+          : globalIndex(flatten(structure), hit.chain, hit.residue));
       }}
       onWheel={(event) => stageRef.current?.zoom(1 + event.deltaY * 0.001)}
     />
