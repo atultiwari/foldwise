@@ -135,7 +135,7 @@ biology is kept. All four target drugs are present:
 
 ## 7. Core maths — `packages/core` (Phase 2)
 
-**66 tests, 99.8% statement / 96.3% branch coverage.**
+**107 tests, 99.8% statement / 96.7% branch coverage.**
 
 ### SASA — against FreeSASA
 
@@ -197,6 +197,49 @@ a regression test asserting they disagree, so the mistake cannot recur silently.
 Cα cutoff calibrated on a single protein. It is not the published definition and
 should not be quoted as though it were.
 
+### Hydrogen bonds — exact agreement across two languages
+
+The pipeline computes the Kabsch–Sander map in Python to assign secondary
+structure; `packages/core` computes it in TypeScript on every animation frame.
+Both are checked against the same fixture:
+
+| Structure | Native bonds | TypeScript reproduces |
+|---|---:|---:|
+| 1UBI | 57 | **57 / 57 — 100 %** |
+| 7VH8 | 192 | **192 / 192 — 100 %** |
+
+Bond for bond, donor for donor. Two independent implementations of the same
+criterion agreeing exactly is a much stronger statement than either agreeing
+with itself.
+
+Also checked on real coordinates: within ubiquitin's α-helix (residues 23–34)
+there are exactly **8 bonds, all of them i→i+4** — the defining ladder.
+
+> An earlier version of that test bounded only one end of the bond and so also
+> caught β-sheet bonds between strands 1 and 5, whose partners sit sixty
+> residues apart. The fix was to the test.
+
+### Salt bridges — a measured approximation
+
+Barlow & Thornton (1983) define a salt bridge by an **all-atom** test: a charged
+nitrogen of Arg/Lys/His within 4 Å of a carboxylate oxygen of Asp/Glu. The
+browser holds one point per side chain and cannot apply that directly, so the
+pipeline now emits a charged-group centroid (`sc`) per residue and the browser
+uses a 5 Å centroid criterion.
+
+The approximation is **measured against the real all-atom answer**, which the
+pipeline computes from the full mmCIF:
+
+| Structure | All-atom bridges | Recovered | False positives |
+|---|---:|---:|---:|
+| 1UBI | 3 | 2 | **0** |
+| 7VH8 | 9 | **9** | **0** |
+
+The single miss is Arg54–Asp58 in ubiquitin, whose group centroids are
+**5.01 Å** apart — one hundredth of an angstrom past the threshold. The cutoff
+has deliberately *not* been widened to capture it: tuning a threshold on one
+data point is fitting noise, not calibrating.
+
 ---
 
 ## 8. Not yet validated
@@ -204,7 +247,6 @@ should not be quoted as though it were.
 Named here so nothing is quietly assumed:
 
 - [ ] Contact order at more than one calibration point — currently ubiquitin only
-- [ ] Hydrogen bonds and salt bridges in `packages/core` — not yet written
-- [ ] Residue composition tables (hydropathy, charge, max ASA) — not yet written
+- [ ] Salt-bridge cutoff on more than two structures — 12 bridges is a thin basis
 - [ ] Folding trajectory invariants — engine not yet written
 - [ ] The ΔF508 / T315I variant deltas — nothing computed yet

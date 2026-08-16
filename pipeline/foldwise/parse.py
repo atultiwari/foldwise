@@ -13,7 +13,7 @@ import numpy as np
 
 from .dssp import secondary_structure
 from .model import Chain, Disulfide, Gap, Ligand, LigandAtom
-from .residues import BACKBONE, is_ligand, one_letter, virtual_cb
+from .residues import BACKBONE, is_ligand, one_letter, side_chain_centre, virtual_cb
 
 #: Ca-Ca further apart than this means the chain is broken, not stretched.
 #: Consecutive residues sit at 3.8 A; cis-proline can reach ~2.9 A.
@@ -36,6 +36,7 @@ class RawResidue:
     c: np.ndarray
     o: np.ndarray
     cb: np.ndarray
+    sc: np.ndarray
     bf: float
 
 
@@ -77,6 +78,7 @@ def _extract_residues(chain: gemmi.Chain) -> list[RawResidue]:
                 res_num=residue.seqid.num,
                 ins_code=residue.seqid.icode or " ",
                 n=n, ca=ca, c=c, o=o, cb=cb,
+                sc=side_chain_centre(residue, ca),
                 bf=float(np.mean([a.b_iso for a in atoms if a is not None])),
             )
         )
@@ -149,6 +151,7 @@ def build_chain(chain: gemmi.Chain) -> Chain | None:
         c=_round_flat([r.c for r in residues]),
         o=_round_flat([r.o for r in residues]),
         cb=_round_flat([r.cb for r in residues]),
+        sc=_round_flat([r.sc for r in residues]),
         bf=tuple(round(r.bf, 2) for r in residues),
         gaps=tuple(gaps),
     )

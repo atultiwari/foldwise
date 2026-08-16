@@ -46,6 +46,9 @@ class Chain(BaseModel):
     c: tuple[float, ...]
     o: tuple[float, ...]
     cb: tuple[float, ...] = Field(description="Virtual Cb for glycine")
+    sc: tuple[float, ...] = Field(
+        description="Side-chain functional-group centroid; charged group where there is one"
+    )
     bf: tuple[float, ...]
     gaps: tuple[Gap, ...] = ()
 
@@ -61,7 +64,7 @@ class Chain(BaseModel):
                 )
         if len(self.res_nums) != n_res or len(self.bf) != n_res:
             raise ValueError(f"chain {self.id}: res_nums/bf length mismatch")
-        for name in ("ca", "n", "c", "o", "cb"):
+        for name in ("ca", "n", "c", "o", "cb", "sc"):
             got = len(getattr(self, name))
             if got != n_res * 3:
                 raise ValueError(f"chain {self.id}: {name} is {got}, expected {n_res * 3}")

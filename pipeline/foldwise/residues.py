@@ -45,6 +45,58 @@ def is_ligand(residue_name: str) -> bool:
     return residue_name not in CRYSTALLISATION_JUNK
 
 
+#: The chemically meaningful end of each charged side chain. A salt bridge is
+#: between these groups, not between Cb atoms, so the viewer needs their
+#: positions if it is to draw real ionic interactions rather than guesses.
+CHARGED_GROUP_ATOMS: dict[str, tuple[str, ...]] = {
+    "ARG": ("NE", "CZ", "NH1", "NH2"),      # guanidinium
+    "LYS": ("NZ",),                          # ammonium
+    "HIS": ("CG", "ND1", "CD2", "CE1", "NE2"),  # imidazole
+    "ASP": ("CG", "OD1", "OD2"),             # carboxylate
+    "GLU": ("CD", "OE1", "OE2"),             # carboxylate
+}
+
+#: Atoms that actually carry the charge, used for the all-atom salt-bridge
+#: criterion of Barlow & Thornton (1983): any of these within 4 A of an
+#: oppositely charged one.
+SALT_BRIDGE_ATOMS: dict[str, tuple[str, ...]] = {
+    "ARG": ("NE", "NH1", "NH2"),
+    "LYS": ("NZ",),
+    "HIS": ("ND1", "NE2"),
+    "ASP": ("OD1", "OD2"),
+    "GLU": ("OE1", "OE2"),
+}
+
+POSITIVE_RESIDUES = frozenset({"ARG", "LYS", "HIS"})
+NEGATIVE_RESIDUES = frozenset({"ASP", "GLU"})
+
+#: Barlow & Thornton (1983) J Mol Biol 168:867.
+SALT_BRIDGE_CUTOFF = 4.0
+
+
+def side_chain_centre(residue, ca: np.ndarray) -> np.ndarray:
+    """Where the side chain's business end sits.
+
+    For a charged residue this is the centroid of its charged group; for
+    anything else it is the centroid of the side-chain heavy atoms. Glycine has
+    no side chain, so it falls back to its own Ca.
+    """
+    wanted = CHARGED_GROUP_ATOMS.get(residue.name)
+    if wanted is not None:
+        positions = [
+            np.array([a.pos.x, a.pos.y, a.pos.z]) for a in residue if a.name in wanted
+        ]
+        if positions:
+            return np.mean(positions, axis=0)
+
+    positions = [
+        np.array([a.pos.x, a.pos.y, a.pos.z])
+        for a in residue
+        if a.name not in BACKBONE and a.element.name != "H"
+    ]
+    return np.mean(positions, axis=0) if positions else ca
+
+
 def virtual_cb(n: np.ndarray, ca: np.ndarray, c: np.ndarray) -> np.ndarray:
     """Ideal Cb position from the backbone.
 

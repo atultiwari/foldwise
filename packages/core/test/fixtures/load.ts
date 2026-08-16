@@ -23,6 +23,8 @@ const referenceCase = z.object({
     sasaTotal: z.number().positive(),
     sasaPerResidue: z.array(z.number()),
     radiusOfGyrationCa: z.number().positive(),
+    hydrogenBonds: z.array(z.tuple([z.number().int(), z.number().int()])),
+    saltBridgePairs: z.array(z.tuple([z.string(), z.string()])),
   }),
 });
 

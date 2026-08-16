@@ -17,7 +17,7 @@ def _residue(res_num: int, ca: tuple[float, float, float], ins: str = " ") -> Ra
     zero = np.zeros(3)
     return RawResidue(
         code="A", res_num=res_num, ins_code=ins,
-        n=zero, ca=np.array(ca), c=zero, o=zero, cb=zero, bf=10.0,
+        n=zero, ca=np.array(ca), c=zero, o=zero, cb=zero, sc=zero, bf=10.0,
     )
 
 
@@ -130,6 +130,7 @@ class TestChainSchema:
         base = dict(
             id="A", seq="AAA", ss="CCC", res_nums=(1, 2, 3), ins_codes="   ",
             ca=(0.0,) * 9, n=(0.0,) * 9, c=(0.0,) * 9, o=(0.0,) * 9, cb=(0.0,) * 9,
+            sc=(0.0,) * 9,
             bf=(1.0, 1.0, 1.0),
         )
         return {**base, **overrides}
@@ -152,7 +153,7 @@ class TestChainSchema:
     def test_rejects_empty_chain(self) -> None:
         with pytest.raises(ValidationError):
             Chain(**self._valid(seq="", ss="", res_nums=(), ins_codes="",
-                                ca=(), n=(), c=(), o=(), cb=(), bf=()))
+                                ca=(), n=(), c=(), o=(), cb=(), sc=(), bf=()))
 
     def test_gap_is_frozen(self) -> None:
         gap = Gap(after_index=0, after_res_num=1, before_res_num=5,

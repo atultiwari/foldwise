@@ -20,7 +20,8 @@ from pathlib import Path
 import freesasa
 import numpy as np
 
-from . import fetch, parse
+from . import fetch, parse, saltbridges
+from .dssp.hbond import amide_hydrogens, hbond_map
 
 #: Van der Waals radii, A. Bondi (1964), as used by essentially every SASA tool.
 VDW_RADII = {"N": 1.55, "C": 1.70, "O": 1.52, "S": 1.80}
@@ -35,6 +36,10 @@ REFERENCE_POINTS = 5000
 #: The atoms our model actually carries. FreeSASA must see exactly these and no
 #: others, or we would be comparing an all-atom surface against a backbone one.
 MODEL_ATOMS = ("n", "ca", "c", "o", "cb")
+
+#: Emitted alongside, but excluded from the SASA model -- one centroid per side
+#: chain is not a surface.
+EXTRA_ARRAYS = ("sc",)
 
 #: Element of each, in the same order.
 MODEL_ELEMENTS = ("N", "C", "C", "O", "C")
@@ -94,6 +99,23 @@ def _case(case_id: str, pdb_id: str, description: str, cache: Path) -> dict:
         round(sum(per_atom[i * stride : (i + 1) * stride]), 3) for i in range(len(chain.seq))
     ]
 
+    backbone = {
+        name: np.asarray(getattr(chain, name), dtype=float).reshape(-1, 3)
+        for name in ("n", "ca", "c", "o")
+    }
+    starts = np.zeros(len(chain.seq), dtype=bool)
+    starts[0] = True
+    for gap in chain.gaps:
+        starts[gap.after_index + 1] = True
+    hydrogens, is_donor = amide_hydrogens(
+        backbone["n"], backbone["c"], backbone["o"],
+        np.array([c == "P" for c in chain.seq]), starts,
+    )
+    hb = hbond_map(
+        backbone["ca"], backbone["n"], backbone["c"], backbone["o"], hydrogens, is_donor
+    )
+    bonds = [[int(a), int(d)] for a, d in zip(*np.nonzero(hb))]
+
     ca = np.asarray(chain.ca, dtype=float).reshape(-1, 3)
     centroid = ca.mean(axis=0)
     rg = float(np.sqrt(((ca - centroid) ** 2).sum(axis=1).mean()))
@@ -106,11 +128,20 @@ def _case(case_id: str, pdb_id: str, description: str, cache: Path) -> dict:
         "seq": chain.seq,
         "ss": chain.ss,
         "resNums": list(chain.res_nums),
-        "coords": {name: [round(v, 3) for v in getattr(chain, name)] for name in MODEL_ATOMS},
+        "coords": {
+            name: [round(v, 3) for v in getattr(chain, name)]
+            for name in (*MODEL_ATOMS, *EXTRA_ARRAYS)
+        },
         "expected": {
             "sasaTotal": round(result.totalArea(), 3),
             "sasaPerResidue": per_residue,
             "radiusOfGyrationCa": round(rg, 4),
+            "hydrogenBonds": bonds,
+            "saltBridgePairs": [
+                [a, b]
+                for a, b in saltbridges.find(st)
+                if a.startswith(f"{chain.id}:") and b.startswith(f"{chain.id}:")
+            ],
         },
     }
 
